@@ -161,60 +161,79 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
       <svg
         ref={svgRef}
         viewBox="0 0 400 430"
-        className="w-full h-auto block"
+        className="w-full h-auto block touch-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
         style={{ touchAction: "none" }}
       >
-        {/* Pierścień zewnętrzny / korpus */}
-        <circle cx="200" cy="200" r="210" fill="hsl(var(--board-black))" />
-        <circle cx="200" cy="200" r="200" fill="hsl(var(--board-wire))" />
+        {/*
+          WARSTWA WIZUALNA — wszystkie elementy graficzne tarczy mają
+          pointer-events: none. Detekcja trafień odbywa się wyłącznie
+          przez współrzędne pointer eventów na przezroczystym overlayu
+          poniżej, a punktacja jest liczona przez computeHit(x, y)
+          (kąt → sektor, odległość → ring). Dzięki temu precyzja na
+          mobile nie zależy od trafienia w mały kształt SVG.
+        */}
+        <g style={{ pointerEvents: "none" }}>
+          {/* Pierścień zewnętrzny / korpus */}
+          <circle cx="200" cy="200" r="210" fill="hsl(var(--board-black))" />
+          <circle cx="200" cy="200" r="200" fill="hsl(var(--board-wire))" />
 
-        {sectorPaths.map((s) => (
-          <path key={s.key} d={s.d} fill={s.fill} stroke="hsl(var(--board-wire))" strokeWidth="0.5" />
-        ))}
+          {sectorPaths.map((s) => (
+            <path key={s.key} d={s.d} fill={s.fill} stroke="hsl(var(--board-wire))" strokeWidth="0.5" />
+          ))}
 
-        {/* Bull / Bullseye */}
-        <circle cx="200" cy="200" r={R.bull} fill="hsl(var(--board-green))" stroke="hsl(var(--board-wire))" strokeWidth="0.6" />
-        <circle cx="200" cy="200" r={R.bullseye} fill="hsl(var(--board-red))" stroke="hsl(var(--board-wire))" strokeWidth="0.6" />
+          {/* Bull / Bullseye */}
+          <circle cx="200" cy="200" r={R.bull} fill="hsl(var(--board-green))" stroke="hsl(var(--board-wire))" strokeWidth="0.6" />
+          <circle cx="200" cy="200" r={R.bullseye} fill="hsl(var(--board-red))" stroke="hsl(var(--board-wire))" strokeWidth="0.6" />
 
-        {/* Numery sektorów */}
-        {sectorNumbers.map((n) => (
-          <text
-            key={n.key}
-            x={n.x}
-            y={n.y}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontSize="14"
-            fontWeight="700"
-            fontFamily="Oswald, Inter, sans-serif"
-            fill="hsl(var(--board-cream))"
-          >
-            {n.sector}
-          </text>
-        ))}
+          {/* Numery sektorów */}
+          {sectorNumbers.map((n) => (
+            <text
+              key={n.key}
+              x={n.x}
+              y={n.y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize="14"
+              fontWeight="700"
+              fontFamily="Oswald, Inter, sans-serif"
+              fill="hsl(var(--board-cream))"
+            >
+              {n.sector}
+            </text>
+          ))}
 
-        {/* Trafienia bieżącej tury (X) */}
-        {recentHits.map((h, i) => (
-          <g key={i} className="pointer-events-none">
-            <circle cx={h.x} cy={h.y} r="6" fill="hsl(var(--accent))" opacity="0.25" />
-            <line x1={h.x - 6} y1={h.y - 6} x2={h.x + 6} y2={h.y + 6} stroke="hsl(var(--accent))" strokeWidth="2.4" strokeLinecap="round" />
-            <line x1={h.x - 6} y1={h.y + 6} x2={h.x + 6} y2={h.y - 6} stroke="hsl(var(--accent))" strokeWidth="2.4" strokeLinecap="round" />
-          </g>
-        ))}
+          {/* Trafienia bieżącej tury (X) */}
+          {recentHits.map((h, i) => (
+            <g key={i}>
+              <circle cx={h.x} cy={h.y} r="6" fill="hsl(var(--accent))" opacity="0.25" />
+              <line x1={h.x - 6} y1={h.y - 6} x2={h.x + 6} y2={h.y + 6} stroke="hsl(var(--accent))" strokeWidth="2.4" strokeLinecap="round" />
+              <line x1={h.x - 6} y1={h.y + 6} x2={h.x + 6} y2={h.y - 6} stroke="hsl(var(--accent))" strokeWidth="2.4" strokeLinecap="round" />
+            </g>
+          ))}
 
-        {/* Lupa / zoom z celownikiem (tryb precyzyjny) */}
-        {aim && <ZoomLens cx={aim.x} cy={aim.y} />}
+          {/* Lupa / zoom z celownikiem (tryb precyzyjny) */}
+          {aim && <ZoomLens cx={aim.x} cy={aim.y} />}
 
-        {/* Etykieta trybu precyzyjnego */}
-        {aim && (
-          <text x="200" y="420" textAnchor="middle" fontSize="14" fontFamily="Oswald, Inter, sans-serif" fill="hsl(var(--accent))" fontWeight="700">
-            CELOWANIE — puść aby trafić
-          </text>
-        )}
+          {/* Etykieta trybu precyzyjnego */}
+          {aim && (
+            <text x="200" y="420" textAnchor="middle" fontSize="14" fontFamily="Oswald, Inter, sans-serif" fill="hsl(var(--accent))" fontWeight="700">
+              CELOWANIE — puść aby trafić
+            </text>
+          )}
+        </g>
+
+        {/*
+          WARSTWA INTERAKCJI — pojedynczy, przezroczysty prostokąt
+          obejmujący cały viewBox. Łapie wszystkie pointer events
+          niezależnie od tego, w jaki segment graficzny "wizualnie"
+          trafił użytkownik. To gwarantuje, że nawet drobne ruchy
+          palca na mobile są dokładnie mapowane na (x, y).
+        */}
+        <rect x="0" y="0" width="400" height="430" fill="transparent" />
       </svg>
     </div>
   );
