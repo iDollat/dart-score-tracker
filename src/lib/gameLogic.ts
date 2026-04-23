@@ -115,25 +115,67 @@ export function endTurn(state: GameState): {
   };
 }
 
-export function undoLastTurn(state: GameState): GameState {
-  // Jeśli są nie zatwierdzone rzuty bieżącej tury — wycofaj ostatni rzut
+export function undoLastTurn(state: GameState): {
+  state: GameState;
+  undoneHit: DartHit | null;
+} {
+  // Jeśli są niezatwierdzone rzuty bieżącej tury — wycofaj ostatni rzut
   if (state.currentDarts.length > 0 && !state.winnerId) {
-    return { ...state, currentDarts: state.currentDarts.slice(0, -1) };
+    const undoneHit = state.currentDarts[state.currentDarts.length - 1];
+
+    return {
+      state: {
+        ...state,
+        currentDarts: state.currentDarts.slice(0, -1),
+      },
+      undoneHit,
+    };
   }
-  // Inaczej cofnij ostatnią turę z historii
-  if (state.history.length === 0) return state;
+
+  // Inaczej cofnij ostatni rzut z ostatniej zakończonej tury
+  if (state.history.length === 0) {
+    return {
+      state,
+      undoneHit: null,
+    };
+  }
+
   const last = state.history[state.history.length - 1];
   const playerIdx = state.players.findIndex((p) => p.id === last.playerId);
-  if (playerIdx < 0) return state;
-  const restoredPlayers = state.players.map((p, i) =>
-    i === playerIdx ? { ...p, score: last.startScore } : p,
+
+  if (playerIdx < 0 || last.darts.length === 0) {
+    return {
+      state,
+      undoneHit: null,
+    };
+  }
+
+  const undoneHit = last.darts[last.darts.length - 1];
+  const remainingDarts = last.darts.slice(0, -1);
+
+  const remainingScore = remainingDarts.reduce(
+    (sum, dart) => sum + dart.score,
+    0
   );
+
+  const restoredPlayers = state.players.map((p, i) =>
+    i === playerIdx
+      ? {
+          ...p,
+          score: last.startScore - remainingScore,
+        }
+      : p
+  );
+
   return {
-    ...state,
-    players: restoredPlayers,
-    currentPlayerIdx: playerIdx,
-    currentDarts: [],
-    history: state.history.slice(0, -1),
-    winnerId: null,
+    state: {
+      ...state,
+      players: restoredPlayers,
+      currentPlayerIdx: playerIdx,
+      currentDarts: remainingDarts,
+      history: state.history.slice(0, -1),
+      winnerId: null,
+    },
+    undoneHit,
   };
 }

@@ -12,7 +12,7 @@ import { TurnSummaryOverlay } from "@/components/TurnSummaryOverlay";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
 const Index = () => {
-  const { state, newGame, turnSummary, restartGame, quitGame, addDart, finishTurn, undo } = useGameState();
+  const { state, newGame, turnSummary, lastUndoLabel, restartGame, quitGame, addDart, finishTurn, undo } = useGameState();
   const [confirmAction, setConfirmAction] = useState<"restart" | "quit" | null>(null);
 
   if (!state) {
@@ -76,6 +76,11 @@ const Index = () => {
             onManualAdd={addDart}
             disabled={!!state.winnerId}
           />
+          {lastUndoLabel && (
+            <div className="rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-center font-display text-sm font-bold text-accent">
+              Cofnięto: {lastUndoLabel}
+            </div>
+          )}
         </section>
 
         <aside className="space-y-4">

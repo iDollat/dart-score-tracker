@@ -28,7 +28,7 @@ export function GameSetup({ onStart }: Props) {
           </div>
           <div>
             <h1 className="font-display text-3xl font-bold leading-none">DART<span className="text-primary">501</span></h1>
-            <p className="text-sm text-muted-foreground">Score Tracker + Interactive Board</p>
+            <p className="text-sm text-muted-foreground">Score Tracker</p>
           </div>
         </div>
 

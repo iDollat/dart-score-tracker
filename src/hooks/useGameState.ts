@@ -94,11 +94,31 @@ export function useGameState() {
     });
   }, []);
 
-  const undo = useCallback(() => {
-    setState((s) => (s ? undoLastTurn(s) : s));
-  }, []);
+  const [lastUndoLabel, setLastUndoLabel] = useState<string | null>(null);
 
-  return { state, turnSummary, newGame, restartGame, quitGame, addDart, finishTurn, undo };
+  const undo = () => {
+    setState((s) => {
+      const result = undoLastTurn(s);
+
+      if (result.undoneHit) {
+        setLastUndoLabel(result.undoneHit.label ?? `${result.undoneHit.score}`);
+      }
+
+      return result.state;
+    });
+  };
+
+  useEffect(() => {
+    if (!lastUndoLabel) return;
+
+    const timeout = window.setTimeout(() => {
+      setLastUndoLabel(null);
+    }, 10000);
+
+    return () => window.clearTimeout(timeout);
+  }, [lastUndoLabel]);
+
+  return { state, turnSummary, lastUndoLabel, newGame, restartGame, quitGame, addDart, finishTurn, undo };
 }
 
 function announce(event: "bust" | "win" | "next", state: GameState) {
