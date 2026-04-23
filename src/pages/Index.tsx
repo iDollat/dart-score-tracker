@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useGameState } from "@/hooks/useGameState";
 import { GameSetup } from "@/components/GameSetup";
 import { Dartboard } from "@/components/Dartboard";
@@ -8,9 +9,11 @@ import { WinDialog } from "@/components/WinDialog";
 import { Button } from "@/components/ui/button";
 import { Home, RotateCcw, Target } from "lucide-react";
 import { TurnSummaryOverlay } from "@/components/TurnSummaryOverlay";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 const Index = () => {
   const { state, newGame, turnSummary, restartGame, quitGame, addDart, finishTurn, undo } = useGameState();
+  const [confirmAction, setConfirmAction] = useState<"restart" | "quit" | null>(null);
 
   if (!state) {
     return (
@@ -24,7 +27,7 @@ const Index = () => {
   const winner = state.players.find((p) => p.id === state.winnerId);
 
   return (
-    <main className="min-h-screen p-3 sm:p-5 max-w-7xl mx-auto">
+    <main className="min-h-screen bg-background text-foreground p-3 sm:p-5 max-w-7xl mx-auto overflow-x-hidden">
       <header className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
@@ -38,11 +41,11 @@ const Index = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={restartGame}>
+          <Button size="sm" variant="outline" onClick={() => setConfirmAction("restart")}>
             <RotateCcw className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Restart</span>
           </Button>
-          <Button size="sm" variant="ghost" onClick={quitGame}>
+          <Button size="sm" variant="ghost" onClick={() => setConfirmAction("quit")}>
             <Home className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Nowa gra</span>
           </Button>
@@ -89,7 +92,35 @@ const Index = () => {
       </div>
 
       <TurnSummaryOverlay turn={turnSummary} />
-      
+
+      <ConfirmModal
+        open={confirmAction === "restart"}
+        title="Zrestartować grę?"
+        description="Aktualna rozgrywka zostanie rozpoczęta od nowa. Wyniki i historia tej gry zostaną usunięte."
+        confirmText="Tak, restartuj"
+        cancelText="Anuluj"
+        danger
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          restartGame();
+          setConfirmAction(null);
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmAction === "quit"}
+        title="Zakończyć grę?"
+        description="Wrócisz do ekranu konfiguracji nowej gry. Aktualna rozgrywka zostanie zakończona."
+        confirmText="Tak, zakończ"
+        cancelText="Anuluj"
+        danger
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          quitGame();
+          setConfirmAction(null);
+        }}
+      />
+
       <WinDialog
         open={!!state.winnerId}
         winnerName={winner?.name}
