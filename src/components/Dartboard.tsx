@@ -157,7 +157,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   }, []);
 
   return (
-    <div className="relative w-full max-w-[520px] mx-auto select-none no-touch-callout">
+    <div className="relative z-50 w-full max-w-[520px] mx-auto select-none no-touch-callout overflow-visible">
       <svg
         ref={svgRef}
         viewBox="0 0 400 430"
@@ -166,7 +166,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
-        style={{ touchAction: "none" }}
+        style={{ touchAction: "none", overflow: "visible" }}
       >
         {/*
           WARSTWA WIZUALNA — wszystkie elementy graficzne tarczy mają
@@ -245,7 +245,8 @@ function ZoomLens({ cx, cy }: { cx: number; cy: number }) {
   // Pozycja lupy: nad palcem (cy - 90), ograniczona do viewBox.
   const lensR = 60;
   const lensCx = Math.max(lensR + 5, Math.min(400 - lensR - 5, cx));
-  const lensCy = Math.max(lensR + 5, cy - 90);
+  const lensOffsetY = 115;
+  const lensCy = cy - lensOffsetY;
   const zoom = 3;
   // viewBox wycinka = (cx - lensR/zoom, cy - lensR/zoom, 2*lensR/zoom)
   const sub = (lensR * 2) / zoom;

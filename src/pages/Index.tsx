@@ -49,8 +49,8 @@ const Index = () => {
       </header>
 
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
-        <section className="space-y-4">
-          <div className="lg:hidden">
+        <section className="relative overflow-visible space-y-4">
+          <div className="relative z-10 lg:hidden">
             <PlayerPanel
               players={state.players}
               currentIdx={state.currentPlayerIdx}
