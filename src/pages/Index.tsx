@@ -7,9 +7,10 @@ import { HistoryPanel } from "@/components/HistoryPanel";
 import { WinDialog } from "@/components/WinDialog";
 import { Button } from "@/components/ui/button";
 import { Home, RotateCcw, Target } from "lucide-react";
+import { TurnSummaryOverlay } from "@/components/TurnSummaryOverlay";
 
 const Index = () => {
-  const { state, newGame, restartGame, quitGame, addDart, finishTurn, undo } = useGameState();
+  const { state, newGame, turnSummary, restartGame, quitGame, addDart, finishTurn, undo } = useGameState();
 
   if (!state) {
     return (
@@ -87,6 +88,8 @@ const Index = () => {
         </aside>
       </div>
 
+      <TurnSummaryOverlay turn={turnSummary} />
+      
       <WinDialog
         open={!!state.winnerId}
         winnerName={winner?.name}

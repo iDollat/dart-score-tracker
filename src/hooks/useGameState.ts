@@ -1,9 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
-import { GameState, STORAGE_KEY, GameMode, createGame, endTurn, undoLastTurn } from "@/lib/gameLogic";
+import {
+  GameState,
+  STORAGE_KEY,
+  GameMode,
+  TurnRecord,
+  createGame,
+  endTurn,
+  undoLastTurn,
+} from "@/lib/gameLogic";
 import type { DartHit } from "@/lib/dartboard";
 import { toast } from "sonner";
 
 export function useGameState() {
+  const [turnSummary, setTurnSummary] = useState<TurnRecord | null>(null);
+  useEffect(() => {
+  if (!turnSummary) return;
+
+  const timeout = window.setTimeout(() => {
+    setTurnSummary(null);
+  }, 3800);
+
+  return () => window.clearTimeout(timeout);
+}, [turnSummary]);
+
   const [state, setState] = useState<GameState | null>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -38,6 +57,8 @@ export function useGameState() {
       // auto-end po 3 rzutach
       if (next.currentDarts.length === 3) {
         const result = endTurn(next);
+        const lastTurn = result.state.history[result.state.history.length - 1] ?? null;
+        setTurnSummary(lastTurn);
         announce(result.event, result.state);
         return result.state;
       }
@@ -46,11 +67,15 @@ export function useGameState() {
       const total = next.currentDarts.reduce((a, d) => a + d.score, 0);
       if (player.score - total < 0) {
         const result = endTurn(next);
+        const lastTurn = result.state.history[result.state.history.length - 1] ?? null;
+        setTurnSummary(lastTurn);
         announce(result.event, result.state);
         return result.state;
       }
       if (player.score - total === 0) {
         const result = endTurn(next);
+        const lastTurn = result.state.history[result.state.history.length - 1] ?? null;
+        setTurnSummary(lastTurn);
         announce(result.event, result.state);
         return result.state;
       }
@@ -62,6 +87,8 @@ export function useGameState() {
     setState((s) => {
       if (!s || s.winnerId) return s;
       const result = endTurn(s);
+      const lastTurn = result.state.history[result.state.history.length - 1] ?? null;
+        setTurnSummary(lastTurn);
       announce(result.event, result.state);
       return result.state;
     });
@@ -71,7 +98,7 @@ export function useGameState() {
     setState((s) => (s ? undoLastTurn(s) : s));
   }, []);
 
-  return { state, newGame, restartGame, quitGame, addDart, finishTurn, undo };
+  return { state, turnSummary, newGame, restartGame, quitGame, addDart, finishTurn, undo };
 }
 
 function announce(event: "bust" | "win" | "next", state: GameState) {
