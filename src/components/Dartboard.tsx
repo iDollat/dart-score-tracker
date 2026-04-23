@@ -216,7 +216,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
           ))}
 
           {/* Lupa / zoom z celownikiem (tryb precyzyjny) */}
-          {aim && <ZoomLens cx={aim.x} cy={aim.y} />}
+          {aim && <ZoomLens cx={aim.x} cy={aim.y} hit={computeHit(aim.x, aim.y)} />}
 
           {/* Etykieta trybu precyzyjnego */}
           {aim && (
@@ -239,19 +239,14 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   );
 }
 
-function ZoomLens({ cx, cy }: { cx: number; cy: number }) {
-  // Lupa: koło o promieniu 60 wyświetlone nad punktem celowania, pokazujące
-  // powiększony fragment tarczy z celownikiem.
-  // Pozycja lupy: nad palcem (cy - 90), ograniczona do viewBox.
+function ZoomLens({ cx, cy, hit }: { cx: number; cy: number; hit: DartHit }) {
   const lensR = 60;
   const lensCx = Math.max(lensR + 5, Math.min(400 - lensR - 5, cx));
   const lensOffsetY = 115;
   const lensCy = cy - lensOffsetY;
   const zoom = 3;
-  // viewBox wycinka = (cx - lensR/zoom, cy - lensR/zoom, 2*lensR/zoom)
-  const sub = (lensR * 2) / zoom;
-  const subX = cx - sub / 2;
-  const subY = cy - sub / 2;
+
+  const label = hit.label || "MISS";
 
   return (
     <g className="pointer-events-none">
@@ -261,26 +256,70 @@ function ZoomLens({ cx, cy }: { cx: number; cy: number }) {
         </clipPath>
       </defs>
 
-      {/* Linia od palca do lupy */}
-      <line x1={cx} y1={cy} x2={lensCx} y2={lensCy} stroke="hsl(var(--accent))" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.7" />
+      <line
+        x1={cx}
+        y1={cy}
+        x2={lensCx}
+        y2={lensCy}
+        stroke="hsl(var(--accent))"
+        strokeWidth="1.5"
+        strokeDasharray="3 3"
+        opacity="0.7"
+      />
 
-      {/* Tło lupy */}
-      <circle cx={lensCx} cy={lensCy} r={lensR + 2} fill="hsl(var(--background))" stroke="hsl(var(--accent))" strokeWidth="2" />
+      <circle
+        cx={lensCx}
+        cy={lensCy}
+        r={lensR + 2}
+        fill="hsl(var(--background))"
+        stroke="hsl(var(--accent))"
+        strokeWidth="2"
+      />
 
-      {/* Powiększony obraz tarczy używamy <use> i transformacji */}
       <g clipPath="url(#lens-clip)">
         <g transform={`translate(${lensCx} ${lensCy}) scale(${zoom}) translate(${-cx} ${-cy})`}>
           <BoardClone />
         </g>
-        {/* Celownik */}
+
         <line x1={lensCx - lensR + 6} y1={lensCy} x2={lensCx + lensR - 6} y2={lensCy} stroke="hsl(var(--accent))" strokeWidth="1" />
         <line x1={lensCx} y1={lensCy - lensR + 6} x2={lensCx} y2={lensCy + lensR - 6} stroke="hsl(var(--accent))" strokeWidth="1" />
         <circle cx={lensCx} cy={lensCy} r="10" fill="none" stroke="hsl(var(--accent))" strokeWidth="1.5" />
         <circle cx={lensCx} cy={lensCy} r="2" fill="hsl(var(--accent))" />
+
+        {/* Aktualne pole pod celownikiem */}
+        <rect
+          x={lensCx - 32}
+          y={lensCy - lensR + 8}
+          width="64"
+          height="26"
+          rx="13"
+          fill="hsl(var(--background) / 0.85)"
+          stroke="hsl(var(--accent))"
+          strokeWidth="1"
+        />
+
+        <text
+          x={lensCx}
+          y={lensCy - lensR + 25}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize="16"
+          fontWeight="900"
+          fontFamily="Oswald, Inter, sans-serif"
+          fill="hsl(var(--accent))"
+        >
+          {label}
+        </text>
       </g>
 
-      {/* Mały X w punkcie palca */}
-      <circle cx={cx} cy={cy} r="14" fill="hsl(var(--accent) / 0.15)" stroke="hsl(var(--accent))" strokeWidth="1" />
+      <circle
+        cx={cx}
+        cy={cy}
+        r="14"
+        fill="hsl(var(--accent) / 0.15)"
+        stroke="hsl(var(--accent))"
+        strokeWidth="1"
+      />
     </g>
   );
 }

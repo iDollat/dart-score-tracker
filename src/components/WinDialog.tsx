@@ -21,7 +21,7 @@ export function WinDialog({ open, winnerName, onRestart, onQuit }: Props) {
             Zwycięstwo!
           </DialogTitle>
           <DialogDescription className="text-center text-base">
-            <span className="font-bold text-foreground">{winnerName}</span> kończy partię z dokładnie 0 punktów. 🎯
+            <span className="font-bold text-foreground">{winnerName}</span> kończy partię.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="grid grid-cols-2 gap-2 sm:grid-cols-2">
