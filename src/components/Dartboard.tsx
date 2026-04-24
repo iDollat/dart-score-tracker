@@ -8,7 +8,14 @@ interface Props {
 }
 
 // Generuje ścieżkę SVG dla wycinka (annulus segment) między r1 i r2 oraz kątami a1..a2 (deg, 0=góra, CW)
-function annulusSegment(cx: number, cy: number, r1: number, r2: number, a1: number, a2: number) {
+function annulusSegment(
+  cx: number,
+  cy: number,
+  r1: number,
+  r2: number,
+  a1: number,
+  a2: number,
+) {
   const toXY = (r: number, a: number) => {
     const rad = ((a - 90) * Math.PI) / 180;
     return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)] as const;
@@ -57,12 +64,9 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     pressActive.current = true;
     movedAfterPress.current = false;
 
-    const isTouch = e.pointerType === "touch" || e.pointerType === "pen";
-    if (isTouch) {
-      longPressTimer.current = window.setTimeout(() => {
-        setAim(pt);
-      }, LONG_PRESS_MS);
-    }
+    longPressTimer.current = window.setTimeout(() => {
+      setAim(pt);
+    }, LONG_PRESS_MS);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -121,7 +125,9 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
       items.push({
         key: `s1-${i}`,
         d: annulusSegment(200, 200, R.bull, R.tripleInner, a1, a2),
-        fill: evenSector ? "hsl(var(--board-cream))" : "hsl(var(--board-black))",
+        fill: evenSector
+          ? "hsl(var(--board-cream))"
+          : "hsl(var(--board-black))",
       });
       // Triple
       items.push({
@@ -133,7 +139,9 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
       items.push({
         key: `s2-${i}`,
         d: annulusSegment(200, 200, R.tripleOuter, R.doubleInner, a1, a2),
-        fill: evenSector ? "hsl(var(--board-cream))" : "hsl(var(--board-black))",
+        fill: evenSector
+          ? "hsl(var(--board-cream))"
+          : "hsl(var(--board-black))",
       });
       // Double
       items.push({
@@ -182,12 +190,32 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
           <circle cx="200" cy="200" r="200" fill="hsl(var(--board-wire))" />
 
           {sectorPaths.map((s) => (
-            <path key={s.key} d={s.d} fill={s.fill} stroke="hsl(var(--board-wire))" strokeWidth="0.5" />
+            <path
+              key={s.key}
+              d={s.d}
+              fill={s.fill}
+              stroke="hsl(var(--board-wire))"
+              strokeWidth="0.5"
+            />
           ))}
 
           {/* Bull / Bullseye */}
-          <circle cx="200" cy="200" r={R.bull} fill="hsl(var(--board-green))" stroke="hsl(var(--board-wire))" strokeWidth="0.6" />
-          <circle cx="200" cy="200" r={R.bullseye} fill="hsl(var(--board-red))" stroke="hsl(var(--board-wire))" strokeWidth="0.6" />
+          <circle
+            cx="200"
+            cy="200"
+            r={R.bull}
+            fill="hsl(var(--board-green))"
+            stroke="hsl(var(--board-wire))"
+            strokeWidth="0.6"
+          />
+          <circle
+            cx="200"
+            cy="200"
+            r={R.bullseye}
+            fill="hsl(var(--board-red))"
+            stroke="hsl(var(--board-wire))"
+            strokeWidth="0.6"
+          />
 
           {/* Numery sektorów */}
           {sectorNumbers.map((n) => (
@@ -209,18 +237,50 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
           {/* Trafienia bieżącej tury (X) */}
           {recentHits.map((h, i) => (
             <g key={i}>
-              <circle cx={h.x} cy={h.y} r="6" fill="hsl(var(--accent))" opacity="0.25" />
-              <line x1={h.x - 6} y1={h.y - 6} x2={h.x + 6} y2={h.y + 6} stroke="hsl(var(--accent))" strokeWidth="2.4" strokeLinecap="round" />
-              <line x1={h.x - 6} y1={h.y + 6} x2={h.x + 6} y2={h.y - 6} stroke="hsl(var(--accent))" strokeWidth="2.4" strokeLinecap="round" />
+              <circle
+                cx={h.x}
+                cy={h.y}
+                r="6"
+                fill="hsl(var(--accent))"
+                opacity="0.25"
+              />
+              <line
+                x1={h.x - 6}
+                y1={h.y - 6}
+                x2={h.x + 6}
+                y2={h.y + 6}
+                stroke="hsl(var(--accent))"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              />
+              <line
+                x1={h.x - 6}
+                y1={h.y + 6}
+                x2={h.x + 6}
+                y2={h.y - 6}
+                stroke="hsl(var(--accent))"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+              />
             </g>
           ))}
 
           {/* Lupa / zoom z celownikiem (tryb precyzyjny) */}
-          {aim && <ZoomLens cx={aim.x} cy={aim.y} hit={computeHit(aim.x, aim.y)} />}
+          {aim && (
+            <ZoomLens cx={aim.x} cy={aim.y} hit={computeHit(aim.x, aim.y)} />
+          )}
 
           {/* Etykieta trybu precyzyjnego */}
           {aim && (
-            <text x="200" y="420" textAnchor="middle" fontSize="14" fontFamily="Oswald, Inter, sans-serif" fill="hsl(var(--accent))" fontWeight="700">
+            <text
+              x="200"
+              y="420"
+              textAnchor="middle"
+              fontSize="14"
+              fontFamily="Oswald, Inter, sans-serif"
+              fill="hsl(var(--accent))"
+              fontWeight="700"
+            >
               CELOWANIE — puść aby trafić
             </text>
           )}
@@ -277,13 +337,36 @@ function ZoomLens({ cx, cy, hit }: { cx: number; cy: number; hit: DartHit }) {
       />
 
       <g clipPath="url(#lens-clip)">
-        <g transform={`translate(${lensCx} ${lensCy}) scale(${zoom}) translate(${-cx} ${-cy})`}>
+        <g
+          transform={`translate(${lensCx} ${lensCy}) scale(${zoom}) translate(${-cx} ${-cy})`}
+        >
           <BoardClone />
         </g>
 
-        <line x1={lensCx - lensR + 6} y1={lensCy} x2={lensCx + lensR - 6} y2={lensCy} stroke="hsl(var(--accent))" strokeWidth="1" />
-        <line x1={lensCx} y1={lensCy - lensR + 6} x2={lensCx} y2={lensCy + lensR - 6} stroke="hsl(var(--accent))" strokeWidth="1" />
-        <circle cx={lensCx} cy={lensCy} r="10" fill="none" stroke="hsl(var(--accent))" strokeWidth="1.5" />
+        <line
+          x1={lensCx - lensR + 6}
+          y1={lensCy}
+          x2={lensCx + lensR - 6}
+          y2={lensCy}
+          stroke="hsl(var(--accent))"
+          strokeWidth="1"
+        />
+        <line
+          x1={lensCx}
+          y1={lensCy - lensR + 6}
+          x2={lensCx}
+          y2={lensCy + lensR - 6}
+          stroke="hsl(var(--accent))"
+          strokeWidth="1"
+        />
+        <circle
+          cx={lensCx}
+          cy={lensCy}
+          r="10"
+          fill="none"
+          stroke="hsl(var(--accent))"
+          strokeWidth="1.5"
+        />
         <circle cx={lensCx} cy={lensCy} r="2" fill="hsl(var(--accent))" />
 
         {/* Aktualne pole pod celownikiem */}
@@ -332,10 +415,30 @@ function BoardClone() {
       const a1 = i * 18 - 9;
       const a2 = i * 18 + 9;
       const evenSector = i % 2 === 0;
-      items.push({ key: `s1-${i}`, d: annulusSegment(200, 200, R.bull, R.tripleInner, a1, a2), fill: evenSector ? "hsl(var(--board-cream))" : "hsl(var(--board-black))" });
-      items.push({ key: `t-${i}`, d: annulusSegment(200, 200, R.tripleInner, R.tripleOuter, a1, a2), fill: evenSector ? "hsl(var(--board-red))" : "hsl(var(--board-green))" });
-      items.push({ key: `s2-${i}`, d: annulusSegment(200, 200, R.tripleOuter, R.doubleInner, a1, a2), fill: evenSector ? "hsl(var(--board-cream))" : "hsl(var(--board-black))" });
-      items.push({ key: `d-${i}`, d: annulusSegment(200, 200, R.doubleInner, R.doubleOuter, a1, a2), fill: evenSector ? "hsl(var(--board-red))" : "hsl(var(--board-green))" });
+      items.push({
+        key: `s1-${i}`,
+        d: annulusSegment(200, 200, R.bull, R.tripleInner, a1, a2),
+        fill: evenSector
+          ? "hsl(var(--board-cream))"
+          : "hsl(var(--board-black))",
+      });
+      items.push({
+        key: `t-${i}`,
+        d: annulusSegment(200, 200, R.tripleInner, R.tripleOuter, a1, a2),
+        fill: evenSector ? "hsl(var(--board-red))" : "hsl(var(--board-green))",
+      });
+      items.push({
+        key: `s2-${i}`,
+        d: annulusSegment(200, 200, R.tripleOuter, R.doubleInner, a1, a2),
+        fill: evenSector
+          ? "hsl(var(--board-cream))"
+          : "hsl(var(--board-black))",
+      });
+      items.push({
+        key: `d-${i}`,
+        d: annulusSegment(200, 200, R.doubleInner, R.doubleOuter, a1, a2),
+        fill: evenSector ? "hsl(var(--board-red))" : "hsl(var(--board-green))",
+      });
     });
     return items;
   }, []);
