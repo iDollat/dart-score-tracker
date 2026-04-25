@@ -153,16 +153,13 @@ export function undoLastTurn(state: GameState): {
   const undoneHit = last.darts[last.darts.length - 1];
   const remainingDarts = last.darts.slice(0, -1);
 
-  const remainingScore = remainingDarts.reduce(
-    (sum, dart) => sum + dart.score,
-    0
-  );
+  const undoneScore = undoneHit.score;
 
   const restoredPlayers = state.players.map((p, i) =>
     i === playerIdx
       ? {
           ...p,
-          score: last.startScore - remainingScore,
+          score: last.startScore,
         }
       : p
   );
