@@ -37,6 +37,8 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   const pressActive = useRef(false);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const movedAfterPress = useRef(false);
+  const aimActive = useRef(false);
+  const scrollYRef = useRef(0);
 
   // Konwersja współrzędnych klienta -> viewBox (0..400)
   const toSvgCoords = (clientX: number, clientY: number) => {
@@ -55,29 +57,79 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     }
   };
 
+  const lockPageScroll = () => {
+    scrollYRef.current = window.scrollY;
+
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollYRef.current}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+    document.body.style.overflow = "hidden";
+  };
+
+  const unlockPageScroll = () => {
+    const scrollY = scrollYRef.current;
+
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
+    document.body.style.overflow = "";
+
+    window.scrollTo(0, scrollY);
+  };
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (disabled) return;
-    (e.target as Element).setPointerCapture?.(e.pointerId);
-    e.preventDefault();
+
     const pt = toSvgCoords(e.clientX, e.clientY);
+
     pointerStart.current = pt;
     pressActive.current = true;
     movedAfterPress.current = false;
+    aimActive.current = false;
 
     longPressTimer.current = window.setTimeout(() => {
+      aimActive.current = true;
+
+      try {
+        (e.target as Element).setPointerCapture?.(e.pointerId);
+      } catch {
+        // pointer mógł już zostać anulowany przez przeglądarkę
+      }
+
+      lockPageScroll();
       setAim(pt);
     }, LONG_PRESS_MS);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!pressActive.current) return;
+
     const pt = toSvgCoords(e.clientX, e.clientY);
-    movedAfterPress.current = true;
-    if (aim) {
+
+    // PO long pressie: celujemy i blokujemy scroll
+    if (aimActive.current) {
+      e.preventDefault();
       setAim(pt);
-    } else if (e.pointerType === "touch") {
-      // jeśli ruch przed long-press — anuluj, traktujemy jako scroll? trzymamy precyzyjny
-      // Nic nie robimy: long-press timer dalej leci, jeśli aktywuje, wejdzie w aim.
+      return;
+    }
+
+    // PRZED long pressem: jeśli użytkownik poruszył palcem,
+    // traktujemy to jako scroll i anulujemy celowanie
+    if (pointerStart.current) {
+      const dx = pt.x - pointerStart.current.x;
+      const dy = pt.y - pointerStart.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance > 8) {
+        cancelLongPress();
+        pressActive.current = false;
+        aimActive.current = false;
+        return;
+      }
     }
   };
 
@@ -85,32 +137,66 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     if (!pressActive.current || disabled) {
       cancelLongPress();
       pressActive.current = false;
+      aimActive.current = false;
+      setAim(null);
+      unlockPageScroll();
       return;
     }
-    cancelLongPress();
-    pressActive.current = false;
 
-    if (aim) {
-      // Tryb celowania — zatwierdź pozycję celownika
+    cancelLongPress();
+
+    if (aimActive.current && aim) {
+      e.preventDefault();
+
       const hit = computeHit(aim.x, aim.y);
       onHit(hit);
+
       setAim(null);
+      pressActive.current = false;
+      aimActive.current = false;
+      unlockPageScroll();
       return;
     }
 
-    // Zwykłe kliknięcie / tap
-    const pt = toSvgCoords(e.clientX, e.clientY);
-    const hit = computeHit(pt.x, pt.y);
-    onHit(hit);
+    setAim(null);
+    pressActive.current = false;
+    aimActive.current = false;
+    unlockPageScroll();
   };
 
   const handlePointerCancel = () => {
-    cancelLongPress();
+  // Jeśli zoom już jest aktywny, nie zamykamy go przy pointercancel,
+  // bo mobile potrafi wysłać cancel przy próbie scrolla.
+  if (aimActive.current) {
+    return;
+  }
+
+  cancelLongPress();
     pressActive.current = false;
+    aimActive.current = false;
     setAim(null);
+    unlockPageScroll();
   };
 
   useEffect(() => () => cancelLongPress(), []);
+
+  useEffect(() => {
+    const preventScrollWhileAiming = (event: TouchEvent) => {
+      if (aimActive.current) {
+        event.preventDefault();
+      }
+    };
+
+    window.addEventListener("touchmove", preventScrollWhileAiming, {
+      passive: false,
+    });
+
+    return () => {
+      window.removeEventListener("touchmove", preventScrollWhileAiming);
+      cancelLongPress();
+      unlockPageScroll();
+    };
+  }, []);
 
   // Statyczne sektory (memo)
   const sectorPaths = useMemo(() => {
@@ -169,12 +255,12 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
       <svg
         ref={svgRef}
         viewBox="0 0 400 430"
-        className="w-full h-auto block touch-none"
+        className="w-full h-auto block"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
-        style={{ touchAction: "none", overflow: "visible" }}
+        style={{ touchAction: "pan-y", overflow: "visible" }}
       >
         {/*
           WARSTWA WIZUALNA — wszystkie elementy graficzne tarczy mają
