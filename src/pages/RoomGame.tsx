@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, RefreshCcw, Trophy } from "lucide-react";
-import { saveRoomDart, undoRoomAction } from "@/api/roomsApi";
+import {
+  closeRoom,
+  restartRoomGame,
+  saveRoomDart,
+  undoRoomAction,
+} from "@/api/roomsApi";
 import { Dartboard } from "@/components/Dartboard";
 import { RoomHistoryPanel } from "@/components/multiplayer/RoomHistoryPanel";
 import { RoomScorePanel } from "@/components/multiplayer/RoomScorePanel";
 import { RoomTurnControls } from "@/components/multiplayer/RoomTurnControls";
 import { TurnSummaryOverlay } from "@/components/TurnSummaryOverlay";
+import { WinDialog } from "@/components/WinDialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useRoomPolling } from "@/hooks/useRoomPolling";
@@ -26,7 +32,15 @@ export default function RoomGame() {
   const token = session?.clientToken || "";
   const roomCode = code || session?.roomCode || "";
 
-  const { room, me, history, loading, error, refetch } = useRoomPolling({
+  const {
+    room,
+    me,
+    history,
+    loading,
+    error,
+    closed,
+    refetch,
+  } = useRoomPolling({
     code: roomCode,
     token,
     includeHistory: true,
@@ -55,6 +69,7 @@ export default function RoomGame() {
   );
 
   const finished = room?.status === "FINISHED" || game?.status === "finished";
+  const isHost = Boolean(me?.client.isHost);
 
   const serverHits = game?.pendingDarts.map(pendingDartToHit) || [];
 
@@ -69,6 +84,13 @@ export default function RoomGame() {
     (score) =>
       score.playerId === game.winnerPlayerId || score.finalPosition === 1,
   )?.name;
+
+  useEffect(() => {
+    if (!closed) return;
+
+    clearRoomSession();
+    navigate("/", { replace: true });
+  }, [closed, navigate]);
 
   useEffect(() => {
     setOptimisticHits([]);
@@ -127,8 +149,6 @@ export default function RoomGame() {
         hitToRoomDart(game.currentRoomPlayer.id, hit),
       );
 
-      // Nie robimy tutaj GET /room.
-      // Backend wysyła room:update przez Socket.IO.
       setOptimisticHits([]);
     } catch (err) {
       setOptimisticHits([]);
@@ -148,13 +168,64 @@ export default function RoomGame() {
       setActionError(null);
 
       await undoRoomAction(roomCode, token);
-
-      // Po undo socket powinien wysłać update.
-      // Ten refetch zostawiamy jako bezpieczny fallback dla historii.
-      await refetch("history-only" as never);
+      await refetch("history-only");
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Nie udało się cofnąć rzutu",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRestart = async () => {
+    if (!game || busy) return;
+
+    if (!isHost) {
+      setActionError("Tylko host może rozpocząć rewanż.");
+      return;
+    }
+
+    try {
+      setBusy(true);
+      setActionError(null);
+      setTurnSummary(null);
+      setOptimisticHits([]);
+
+      await restartRoomGame(roomCode, token, game.mode);
+
+      initializedHistoryRef.current = false;
+      lastShownTurnIdRef.current = null;
+
+      await refetch("full");
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Nie udało się zrestartować gry",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCloseRoom = async () => {
+    if (busy) return;
+
+    if (!isHost) {
+      setActionError("Tylko host może zakończyć pokój.");
+      return;
+    }
+
+    try {
+      setBusy(true);
+      setActionError(null);
+
+      await closeRoom(roomCode, token);
+
+      clearRoomSession();
+      navigate("/", { replace: true });
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Nie udało się zakończyć pokoju",
       );
     } finally {
       setBusy(false);
@@ -214,6 +285,7 @@ export default function RoomGame() {
             Pokój <span className="text-primary">{room.code}</span> ·{" "}
             {game.mode}
           </h1>
+
           <p className="text-xs text-muted-foreground">
             {finished
               ? "Gra zakończona"
@@ -243,6 +315,11 @@ export default function RoomGame() {
           {winnerName && (
             <p className="text-sm text-muted-foreground">
               Wygrywa: {winnerName}
+            </p>
+          )}
+          {!isHost && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Rewanż albo zakończenie pokoju może uruchomić host.
             </p>
           )}
         </Card>
@@ -290,6 +367,21 @@ export default function RoomGame() {
       </div>
 
       <TurnSummaryOverlay turn={turnSummary} />
+
+      <WinDialog
+        open={finished}
+        winnerName={winnerName}
+        onRestart={handleRestart}
+        onQuit={handleCloseRoom}
+        restartLabel="Rewanż"
+        quitLabel="Zakończ pokój"
+        disabled={busy}
+      />
+
+      <p className="text-center text-xs text-muted-foreground mt-6">
+        REST jest źródłem prawdy dla zapisu. Socket.IO informuje ekran, kiedy
+        trzeba odświeżyć dane.
+      </p>
     </main>
   );
 }
