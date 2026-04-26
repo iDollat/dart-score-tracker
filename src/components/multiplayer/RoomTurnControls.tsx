@@ -26,9 +26,6 @@ export function RoomTurnControls({
           <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground">
             Aktualna tura
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Backend kończy turę automatycznie po 3 rzutach.
-          </p>
         </div>
 
         <div className="font-display text-3xl font-bold">
