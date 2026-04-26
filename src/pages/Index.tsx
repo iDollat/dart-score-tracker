@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useGameState } from "@/hooks/useGameState";
 import { GameSetup } from "@/components/GameSetup";
 import { Dartboard } from "@/components/Dartboard";
@@ -7,19 +8,49 @@ import { TurnControls } from "@/components/TurnControls";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import { WinDialog } from "@/components/WinDialog";
 import { Button } from "@/components/ui/button";
-import { Home, RotateCcw, Target } from "lucide-react";
+import { ArrowLeft, Home, RotateCcw, Target } from "lucide-react";
 import { TurnSummaryOverlay } from "@/components/TurnSummaryOverlay";
 import { ConfirmModal } from "@/components/ConfirmModal";
 
 const Index = () => {
-  const { state, newGame, turnSummary, lastUndoLabel, restartGame, quitGame, addDart, finishTurn, undo } = useGameState();
-  const [confirmAction, setConfirmAction] = useState<"restart" | "quit" | null>(null);
+  const navigate = useNavigate();
+
+  const {
+    state,
+    newGame,
+    turnSummary,
+    lastUndoLabel,
+    restartGame,
+    quitGame,
+    addDart,
+    finishTurn,
+    undo,
+  } = useGameState();
+
+  const [confirmAction, setConfirmAction] = useState<"restart" | "quit" | null>(
+    null,
+  );
 
   if (!state) {
     return (
-      <main>
-        <h1 className="sr-only">Dart Score Tracker — interaktywna tarcza do darta 301 i 501</h1>
-        <GameSetup onStart={newGame} />
+      <main className="min-h-screen bg-background text-foreground p-3 sm:p-5">
+        <div className="max-w-7xl mx-auto">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => navigate("/")}
+            className="mb-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Ekran główny
+          </Button>
+
+          <h1 className="sr-only">
+            Dart Score Tracker — interaktywna tarcza do darta 301 i 501
+          </h1>
+
+          <GameSetup onStart={newGame} />
+        </div>
       </main>
     );
   }
@@ -28,24 +59,42 @@ const Index = () => {
 
   return (
     <main className="min-h-screen bg-background text-foreground p-3 sm:p-5 max-w-7xl mx-auto overflow-x-hidden">
-      <header className="flex items-center justify-between mb-4">
+      <header className="flex items-center justify-between mb-4 gap-2">
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
             <Target className="w-5 h-5 text-primary-foreground" />
           </div>
+
           <div>
             <h1 className="font-display text-xl font-bold leading-none">
               DART<span className="text-primary">{state.mode}</span>
             </h1>
-            <p className="text-xs text-muted-foreground">{state.players.length} graczy</p>
+            <p className="text-xs text-muted-foreground">
+              {state.players.length} graczy
+            </p>
           </div>
         </div>
+
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => setConfirmAction("restart")}>
+          <Button size="sm" variant="ghost" onClick={() => navigate("/")}>
+            <ArrowLeft className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Ekran główny</span>
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setConfirmAction("restart")}
+          >
             <RotateCcw className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Restart</span>
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => setConfirmAction("quit")}>
+
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setConfirmAction("quit")}
+          >
             <Home className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Nowa gra</span>
           </Button>
@@ -76,6 +125,7 @@ const Index = () => {
             onManualAdd={addDart}
             disabled={!!state.winnerId}
           />
+
           {lastUndoLabel && (
             <div className="rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-center font-display text-sm font-bold text-accent">
               Cofnięto: {lastUndoLabel}
@@ -92,6 +142,7 @@ const Index = () => {
               currentDarts={state.currentDarts}
             />
           </div>
+
           <HistoryPanel history={state.history} />
         </aside>
       </div>
@@ -134,7 +185,8 @@ const Index = () => {
       />
 
       <p className="text-center text-xs text-muted-foreground mt-6">
-        Mobile: przytrzymaj tarczę (~350 ms) aby aktywować lupę z celownikiem. Puść, aby zatwierdzić trafienie.
+        Mobile: przytrzymaj tarczę (~350 ms) aby aktywować lupę z celownikiem.
+        Puść, aby zatwierdzić trafienie.
       </p>
     </main>
   );

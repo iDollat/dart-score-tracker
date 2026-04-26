@@ -22,6 +22,8 @@ export interface DartHit {
   label: string;    // np. "T20", "D16", "5", "BULL", "50", "MISS"
   x: number;        // współrzędne w viewBox
   y: number;
+  angle?: number;   // kąt względem góry tarczy, zgodnie z ruchem wskazówek zegara
+  radius?: number;  // odległość od środka tarczy w jednostkach SVG
 }
 
 /**
@@ -33,22 +35,22 @@ export function computeHit(x: number, y: number): DartHit {
   const dy = y - 200;
   const dist = Math.sqrt(dx * dx + dy * dy);
 
-  if (dist <= R.bullseye) {
-    return { sector: 0, ring: "BULLSEYE", score: 50, label: "50 (Bullseye)", x, y };
-  }
-  if (dist <= R.bull) {
-    return { sector: 0, ring: "BULL", score: 25, label: "25 (Bull)", x, y };
-  }
-  if (dist > R.doubleOuter) {
-    return { sector: 0, ring: "MISS", score: 0, label: "Pudło", x, y };
-  }
-
   // Kąt: 0° to góra (sektor 20), rośnie zgodnie z ruchem wskazówek zegara
   // atan2 zwraca kąt w radianach, gdzie 0 = wschód, rośnie przeciwnie do zegara.
   let angleDeg = Math.atan2(dy, dx) * (180 / Math.PI); // -180..180, 0 na wschodzie
   // Konwersja: 0° na górze, w prawo
   angleDeg = angleDeg + 90; // teraz 0 = góra, rośnie zgodnie z zegarem
   if (angleDeg < 0) angleDeg += 360;
+
+  if (dist <= R.bullseye) {
+    return { sector: 0, ring: "BULLSEYE", score: 50, label: "50 (Bullseye)", x, y, angle: angleDeg, radius: dist };
+  }
+  if (dist <= R.bull) {
+    return { sector: 0, ring: "BULL", score: 25, label: "25 (Bull)", x, y, angle: angleDeg, radius: dist };
+  }
+  if (dist > R.doubleOuter) {
+    return { sector: 0, ring: "MISS", score: 0, label: "Pudło", x, y, angle: angleDeg, radius: dist };
+  }
 
   // Każdy sektor ma 18°. Sektor 20 jest wyśrodkowany na 0°, więc jego zakres to -9..+9.
   const shifted = (angleDeg + 9) % 360;
@@ -69,5 +71,5 @@ export function computeHit(x: number, y: number): DartHit {
     label = `D${sector}`;
   }
 
-  return { sector, ring, score, label, x, y };
+  return { sector, ring, score, label, x, y, angle: angleDeg, radius: dist };
 }
