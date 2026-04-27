@@ -1,7 +1,7 @@
 import { io, type Socket } from "socket.io-client";
 import type { RoomDto } from "@/api/roomsApi";
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 export interface RoomUpdateEvent {
   code: string;
@@ -38,10 +38,15 @@ export function getRoomSocket() {
   return socket;
 }
 
-export function joinSocketRoom(roomCode: string) {
-  getRoomSocket().emit("room:join", { code: roomCode.toUpperCase() });
+export function joinSocketRoom(roomCode: string, clientToken: string) {
+  getRoomSocket().emit("room:join", {
+    code: roomCode.toUpperCase(),
+    clientToken,
+  });
 }
 
 export function leaveSocketRoom(roomCode: string) {
-  getRoomSocket().emit("room:leave", { code: roomCode.toUpperCase() });
+  getRoomSocket().emit("room:leave", {
+    code: roomCode.toUpperCase(),
+  });
 }

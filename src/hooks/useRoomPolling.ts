@@ -91,9 +91,7 @@ export function useRoomPolling({
           }
         } catch (err) {
           setError(
-            err instanceof Error
-              ? err.message
-              : "Nie udało się pobrać pokoju",
+            err instanceof Error ? err.message : "Nie udało się pobrać pokoju",
           );
         } finally {
           setLoading(false);
@@ -115,7 +113,7 @@ export function useRoomPolling({
 
     const handleConnect = () => {
       setConnected(true);
-      joinSocketRoom(normalizedCode);
+      joinSocketRoom(normalizedCode, token);
       void refetch("full");
     };
 
