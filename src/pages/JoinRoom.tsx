@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, DoorOpen, Loader2 } from "lucide-react";
-import { getRoom, joinRoom, type RoomDto } from "@/api/roomsApi";
+import { ArrowLeft, DoorOpen, Eye, Loader2 } from "lucide-react";
+import {
+  getRoom,
+  joinRoom,
+  joinRoomAsSpectator,
+  type RoomDto,
+} from "@/api/roomsApi";
 import { PlayerPicker } from "@/components/multiplayer/PlayerPicker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,13 +20,16 @@ export default function JoinRoom() {
   const [room, setRoom] = useState<RoomDto | null>(null);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [excludedPlayerIds, setExcludedPlayerIds] = useState<string[]>([]);
-  const [joining, setJoining] = useState(false);
+  const [joiningAsPlayer, setJoiningAsPlayer] = useState(false);
+  const [joiningAsSpectator, setJoiningAsSpectator] = useState(false);
   const [checkingRoom, setCheckingRoom] = useState(false);
   const [roomCheckError, setRoomCheckError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const normalizedRoomCode = roomCode.trim().toUpperCase();
   const canCheckRoom = normalizedRoomCode.length >= 5;
+  const roomCanAcceptPlayers = room?.status === "WAITING";
+  const busy = joiningAsPlayer || joiningAsSpectator;
 
   useEffect(() => {
     setRoom(null);
@@ -79,6 +87,12 @@ export default function JoinRoom() {
     };
   }, [normalizedRoomCode, canCheckRoom]);
 
+  const getTargetRoute = (responseRoom: { code: string; status: string }) => {
+    return responseRoom.status === "IN_GAME" || responseRoom.status === "FINISHED"
+      ? `/rooms/${responseRoom.code}/game`
+      : `/rooms/${responseRoom.code}/lobby`;
+  };
+
   const handleJoinRoom = async () => {
     const code = normalizedRoomCode;
 
@@ -92,13 +106,18 @@ export default function JoinRoom() {
       return;
     }
 
+    if (!roomCanAcceptPlayers) {
+      setError("Do tego pokoju można teraz dołączyć tylko jako widz.");
+      return;
+    }
+
     if (selectedPlayerIds.length === 0) {
-      setError("Wybierz przynajmniej jednego gracza.");
+      setError("Wybierz przynajmniej jednego gracza albo dołącz jako widz.");
       return;
     }
 
     try {
-      setJoining(true);
+      setJoiningAsPlayer(true);
       setError(null);
 
       const response = await joinRoom(code, selectedPlayerIds);
@@ -107,22 +126,61 @@ export default function JoinRoom() {
         roomCode: response.room.code,
         clientToken: response.clientToken,
         clientId: response.client.id,
+        clientRole: response.client.role ?? "PLAYER",
       });
 
-      navigate(`/rooms/${response.room.code}/lobby`);
+      navigate(getTargetRoute(response.room));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Nie udało się dołączyć do pokoju",
       );
     } finally {
-      setJoining(false);
+      setJoiningAsPlayer(false);
+    }
+  };
+
+  const handleJoinAsSpectator = async () => {
+    const code = normalizedRoomCode;
+
+    if (!code) {
+      setError("Wpisz kod pokoju.");
+      return;
+    }
+
+    if (!room) {
+      setError("Najpierw wpisz poprawny kod istniejącego pokoju.");
+      return;
+    }
+
+    try {
+      setJoiningAsSpectator(true);
+      setError(null);
+
+      const response = await joinRoomAsSpectator(code);
+
+      saveRoomSession({
+        roomCode: response.room.code,
+        clientToken: response.clientToken,
+        clientId: response.client.id,
+        clientRole: response.client.role ?? "SPECTATOR",
+      });
+
+      navigate(getTargetRoute(response.room));
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Nie udało się dołączyć jako widz",
+      );
+    } finally {
+      setJoiningAsSpectator(false);
     }
   };
 
   return (
     <main className="min-h-screen bg-background text-foreground p-4">
       <div className="max-w-3xl mx-auto space-y-4">
-        <Button variant="ghost" onClick={() => navigate("/")}>
+        <Button variant="ghost" onClick={() => navigate("/")}> 
           <ArrowLeft className="w-4 h-4 mr-2" />
           Wróć
         </Button>
@@ -134,8 +192,8 @@ export default function JoinRoom() {
             </h1>
 
             <p className="text-sm text-muted-foreground">
-              Wpisz kod pokoju i wybierz graczy, których będzie kontrolować ta
-              przeglądarka.
+              Wpisz kod pokoju. Możesz dołączyć jako gracz w lobby albo jako
+              widz w dowolnym momencie gry.
             </p>
           </div>
 
@@ -167,11 +225,17 @@ export default function JoinRoom() {
           {room && (
             <div className="rounded-xl border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-muted-foreground">
               Znaleziono pokój <span className="font-bold">{room.code}</span>.
+              <span className="ml-1">Status: {room.status}</span>
+              {!roomCanAcceptPlayers && (
+                <div className="mt-1 text-xs">
+                  Gra już trwa albo jest zakończona — możesz dołączyć jako widz.
+                </div>
+              )}
             </div>
           )}
         </Card>
 
-        {room && (
+        {room && roomCanAcceptPlayers && (
           <PlayerPicker
             selectedPlayerIds={selectedPlayerIds}
             onChange={setSelectedPlayerIds}
@@ -185,26 +249,43 @@ export default function JoinRoom() {
           </div>
         )}
 
-        <Button
-          size="lg"
-          className="w-full font-display text-lg uppercase tracking-wide bg-gradient-primary shadow-glow"
-          onClick={handleJoinRoom}
-          disabled={
-            joining ||
-            checkingRoom ||
-            !room ||
-            selectedPlayerIds.length === 0 ||
-            Boolean(roomCheckError)
-          }
-        >
-          {joining ? (
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-          ) : (
-            <DoorOpen className="w-5 h-5 mr-2" />
-          )}
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Button
+            size="lg"
+            className="w-full font-display text-lg uppercase tracking-wide bg-gradient-primary shadow-glow"
+            onClick={handleJoinRoom}
+            disabled={
+              busy ||
+              checkingRoom ||
+              !room ||
+              !roomCanAcceptPlayers ||
+              selectedPlayerIds.length === 0 ||
+              Boolean(roomCheckError)
+            }
+          >
+            {joiningAsPlayer ? (
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            ) : (
+              <DoorOpen className="w-5 h-5 mr-2" />
+            )}
+            Dołącz jako gracz
+          </Button>
 
-          Dołącz
-        </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full font-display text-lg uppercase tracking-wide"
+            onClick={handleJoinAsSpectator}
+            disabled={busy || checkingRoom || !room || Boolean(roomCheckError)}
+          >
+            {joiningAsSpectator ? (
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            ) : (
+              <Eye className="w-5 h-5 mr-2" />
+            )}
+            Dołącz jako widz
+          </Button>
+        </div>
       </div>
     </main>
   );

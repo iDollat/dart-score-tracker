@@ -28,6 +28,7 @@ export default function CreateRoom() {
         roomCode: response.room.code,
         clientToken: response.clientToken,
         clientId: response.client.id,
+        clientRole: response.client.role ?? "PLAYER",
       });
 
       navigate(`/rooms/${response.room.code}/lobby`);

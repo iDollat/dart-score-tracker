@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Crown,
+  Eye,
   Loader2,
   Play,
   RefreshCcw,
@@ -44,11 +45,22 @@ export default function RoomLobby() {
   const [hostTransferTarget, setHostTransferTarget] =
     useState<RoomClientDto | null>(null);
 
-  const allClientsReady = room?.clients?.length
-    ? room.clients.every((client) => client.isReady)
+  const playerClients = useMemo(
+    () => room?.clients?.filter((client) => client.role === "PLAYER") ?? [],
+    [room?.clients],
+  );
+
+  const spectatorClients = useMemo(
+    () => room?.clients?.filter((client) => client.role === "SPECTATOR") ?? [],
+    [room?.clients],
+  );
+
+  const allClientsReady = playerClients.length
+    ? playerClients.every((client) => client.isReady)
     : false;
 
-  const isHost = Boolean(me?.client.isHost);
+  const isSpectator = me?.client.role === "SPECTATOR";
+  const isHost = Boolean(me?.client.isHost) && !isSpectator;
 
   useEffect(() => {
     if (room?.status === "IN_GAME") {
@@ -59,9 +71,12 @@ export default function RoomLobby() {
   const transferTargetNames = useMemo(() => {
     if (!hostTransferTarget) return "";
 
-    return hostTransferTarget.players
-      .map((roomPlayer) => roomPlayer.player.name)
-      .join(", ");
+    return (
+      hostTransferTarget.players
+        .map((roomPlayer) => roomPlayer.player.name)
+        .filter(Boolean)
+        .join(", ") || hostTransferTarget.name || "Klient"
+    );
   }, [hostTransferTarget]);
 
   const getClientPlayerNames = (client: RoomClientDto) => {
@@ -238,10 +253,11 @@ export default function RoomLobby() {
           </div>
 
           <div className="grid gap-3">
-            {room.clients?.map((client) => {
+            {playerClients.map((client) => {
               const clientIsHost = client.id === room.hostClientId;
               const isMe = client.id === me.client.id;
-              const canTransferHost = isHost && !isMe && !clientIsHost;
+              const canTransferHost =
+                isHost && !isMe && !clientIsHost && client.role === "PLAYER";
               const playerNames = getClientPlayerNames(client);
 
               return (
@@ -318,7 +334,45 @@ export default function RoomLobby() {
           </div>
         </Card>
 
-        <div className="grid md:grid-cols-2 gap-4">
+        {spectatorClients.length > 0 && (
+          <Card className="p-4 bg-card/70 border-border/70">
+            <div className="flex items-center gap-2 mb-3">
+              <Eye className="w-5 h-5 text-primary" />
+              <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground">
+                Widzowie
+              </h2>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {spectatorClients.map((client) => (
+                <span
+                  key={client.id}
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs bg-secondary/30 text-muted-foreground",
+                    client.id === me.client.id && "border-primary text-primary bg-primary/10",
+                  )}
+                >
+                  {client.id === me.client.id ? "Ty jako widz" : client.name || "Widz"}
+                </span>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {isSpectator && (
+          <Card className="p-4 border-primary/30 bg-primary/10 text-center">
+            <Eye className="w-7 h-7 mx-auto text-primary mb-2" />
+            <p className="font-display text-lg font-bold text-primary">
+              Oglądasz ten pokój jako widz
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Widzisz lobby i grę na żywo, ale nie możesz oznaczać gotowości ani wykonywać akcji gracza.
+            </p>
+          </Card>
+        )}
+
+        {!isSpectator && (
+          <div className="grid md:grid-cols-2 gap-4">
           <Card className="p-4 bg-card/70 border-border/70 space-y-3 flex flex-col justify-between">
             <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground">
               Twoja gotowość
@@ -337,7 +391,7 @@ export default function RoomLobby() {
             </Button>
           </Card>
 
-          {me.client.isHost && (
+          {me.client.isHost && !isSpectator && (
             <Card className="p-4 bg-card/70 border-border/70 space-y-3">
               <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground">
                 Start gry
@@ -372,6 +426,7 @@ export default function RoomLobby() {
             </Card>
           )}
         </div>
+        )}
 
         {actionError && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -384,9 +439,11 @@ export default function RoomLobby() {
         open={confirmLeaveOpen}
         title="Opuścić pokój?"
         description={
-          me.client.isHost
-            ? "Jesteś hostem pokoju. Jeśli są inni gracze, host zostanie przekazany kolejnej osobie. Jeśli jesteś ostatni, pokój zostanie zamknięty."
-            : "Zostaniesz usunięty z pokoju razem z graczami kontrolowanymi przez tę przeglądarkę."
+          isSpectator
+            ? "Opuścisz pokój jako widz. Gra i gracze nie zostaną zmienieni."
+            : isHost
+              ? "Jesteś hostem pokoju. Jeśli są inni gracze, host zostanie przekazany kolejnej osobie. Jeśli jesteś ostatni, pokój zostanie zamknięty."
+              : "Zostaniesz usunięty z pokoju razem z graczami kontrolowanymi przez tę przeglądarkę."
         }
         confirmText="Tak, opuść"
         cancelText="Anuluj"

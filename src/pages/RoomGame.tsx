@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, RefreshCcw, Trophy } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, RefreshCcw, Trophy } from "lucide-react";
 import {
   closeRoom,
   restartRoomGame,
@@ -75,14 +75,15 @@ export default function RoomGame() {
   );
 
   const currentRoomPlayerId = game?.currentRoomPlayer?.id;
+  const isSpectator = me?.client.role === "SPECTATOR";
 
-  const isMyTurn = Boolean(
+  const isMyTurn = !isSpectator && Boolean(
     currentRoomPlayerId &&
     controlledRoomPlayerIds.includes(currentRoomPlayerId),
   );
 
   const finished = room?.status === "FINISHED" || game?.status === "finished";
-  const isHost = Boolean(me?.client.isHost);
+  const isHost = Boolean(me?.client.isHost) && !isSpectator;
 
   const serverHits = game?.pendingDarts.map(pendingDartToHit) || [];
 
@@ -208,6 +209,7 @@ export default function RoomGame() {
   const handleHit = async (hit: DartHit) => {
     if (
       !game?.currentRoomPlayer?.id ||
+      isSpectator ||
       !isMyTurn ||
       finished ||
       busy ||
@@ -245,7 +247,7 @@ export default function RoomGame() {
   };
 
   const handleUndo = async () => {
-    if (busy || finished) return;
+    if (busy || finished || isSpectator) return;
 
     try {
       setBusy(true);
@@ -373,9 +375,11 @@ export default function RoomGame() {
           <p className="text-xs text-muted-foreground">
             {finished
               ? "Gra zakończona"
-              : isMyTurn
-                ? "Twoja kolej"
-                : `Teraz rzuca: ${currentPlayerName}`}
+              : isSpectator
+                ? `Oglądasz jako widz · teraz rzuca: ${currentPlayerName}`
+                : isMyTurn
+                  ? "Twoja kolej"
+                  : `Teraz rzuca: ${currentPlayerName}`}
           </p>
         </div>
 
@@ -396,6 +400,13 @@ export default function RoomGame() {
         </div>
       </header>
 
+      {isSpectator && (
+        <Card className="mb-4 p-3 border-primary/30 bg-primary/10 text-center font-display text-primary">
+          <Eye className="w-5 h-5 mx-auto mb-1" />
+          Oglądasz pokój jako widz
+        </Card>
+      )}
+
       {finished && (
         <Card className="mb-4 p-4 border-success bg-success/10 text-center">
           <Trophy className="w-8 h-8 mx-auto text-accent mb-2" />
@@ -405,7 +416,7 @@ export default function RoomGame() {
               Wygrywa: {winnerName}
             </p>
           )}
-          {!isHost && (
+          {(!isHost || isSpectator) && (
             <p className="text-xs text-muted-foreground mt-2">
               Rewanż albo zakończenie pokoju może uruchomić host.
             </p>
@@ -442,14 +453,14 @@ export default function RoomGame() {
           <Dartboard
             onHit={handleHit}
             recentHits={recentHits}
-            disabled={!isMyTurn || finished || busy || turnTransitionActive}
+            disabled={isSpectator || !isMyTurn || finished || busy || turnTransitionActive}
           />
 
           <RoomTurnControls
             pendingDarts={game.pendingDarts}
             onUndo={handleUndo}
-            disabled={busy || finished}
-            canUndo={isMyTurn || recentHits.length === 0}
+            disabled={isSpectator || busy || finished}
+            canUndo={!isSpectator && (isMyTurn || recentHits.length === 0)}
           />
         </section>
 
@@ -464,22 +475,26 @@ export default function RoomGame() {
 
       <TurnSummaryOverlay turn={turnSummary} />
 
-      <WinDialog
-        open={finished}
-        winnerName={winnerName}
-        onRestart={handleRestart}
-        onQuit={handleCloseRoom}
-        restartLabel="Rewanż"
-        quitLabel="Zakończ pokój"
-        disabled={busy}
-      />
+      {!isSpectator && (
+        <WinDialog
+          open={finished}
+          winnerName={winnerName}
+          onRestart={handleRestart}
+          onQuit={handleCloseRoom}
+          restartLabel="Rewanż"
+          quitLabel="Zakończ pokój"
+          disabled={busy}
+        />
+      )}
       <ConfirmModal
         open={confirmLeaveOpen}
         title="Opuścić grę?"
         description={
-          isHost
-            ? "Jesteś hostem pokoju. Jeśli są inni gracze, host zostanie przekazany kolejnej osobie. Jeśli jesteś ostatni, pokój zostanie zamknięty."
-            : "Zostaniesz usunięty z gry razem z graczami kontrolowanymi przez tę przeglądarkę."
+          isSpectator
+            ? "Opuścisz pokój jako widz. Gra i gracze nie zostaną zmienieni."
+            : isHost
+              ? "Jesteś hostem pokoju. Jeśli są inni gracze, host zostanie przekazany kolejnej osobie. Jeśli jesteś ostatni, pokój zostanie zamknięty."
+              : "Zostaniesz usunięty z gry razem z graczami kontrolowanymi przez tę przeglądarkę."
         }
         confirmText="Tak, opuść"
         cancelText="Anuluj"

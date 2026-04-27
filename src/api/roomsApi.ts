@@ -9,6 +9,7 @@ export interface PlayerDto {
 }
 
 export type RoomStatus = "WAITING" | "IN_GAME" | "FINISHED" | "CLOSED";
+export type RoomClientRole = "PLAYER" | "SPECTATOR";
 export type GameStatus = "active" | "finished" | string;
 
 export interface RoomClientPlayerDto {
@@ -23,6 +24,7 @@ export interface RoomClientPlayerDto {
 export interface RoomClientDto {
   id: string;
   isHost: boolean;
+  role: RoomClientRole;
   name?: string;
   isReady: boolean;
   players: RoomClientPlayerDto[];
@@ -39,6 +41,7 @@ export interface RoomPlayerDto {
   };
   client?: {
     id: string;
+    role?: RoomClientRole;
     name?: string;
     isReady?: boolean;
   };
@@ -99,6 +102,7 @@ export interface RoomMeDto {
   client: {
     id: string;
     roomId: string;
+    role: RoomClientRole;
     name?: string;
     isReady: boolean;
     isHost: boolean;
@@ -125,6 +129,7 @@ export interface CreateRoomResponse {
   client: {
     id: string;
     isHost: boolean;
+    role: RoomClientRole;
   };
   clientToken: string;
   players: RoomPlayerDto[];
@@ -139,6 +144,7 @@ export interface JoinRoomResponse {
   client: {
     id: string;
     isHost: boolean;
+    role: RoomClientRole;
   };
   clientToken: string;
   players: RoomPlayerDto[];
@@ -263,6 +269,17 @@ export function joinRoom(code: string, playerIds: string[]) {
     method: "POST",
     body: JSON.stringify({ playerIds }),
   });
+}
+
+
+export function joinRoomAsSpectator(code: string) {
+  return request<JoinRoomResponse>(
+    `/api/rooms/${code.toUpperCase()}/join-spectator`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+    },
+  );
 }
 
 export function getRoom(code: string) {
