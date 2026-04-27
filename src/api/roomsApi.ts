@@ -155,22 +155,46 @@ export interface SaveRoomDartBody {
   radius?: number;
 }
 
+export interface SaveRoomDartResponse {
+  message: string;
+  turnCompleted: boolean;
+  pendingDart?: PendingDartDto;
+  pendingDarts?: PendingDartDto[];
+  currentScore?: number;
+  currentScorePreview?: number;
+  turn?: RoomTurnDto;
+  gamePlayer?: unknown;
+  game?: unknown;
+  room?: RoomDto | null;
+  next?: unknown;
+}
+
 export interface RoomTurnDto {
   id: string;
+  gameId?: string;
+  playerId: string;
   turnNumber: number;
-  player: {
-    id: string;
-    name: string;
-  };
   startScore: number;
   scored: number;
   endScore: number;
   bust: boolean;
+  createdAt?: string;
+  player?: {
+    id: string;
+    name: string;
+    createdAt?: string;
+  };
   darts: Array<{
+    id?: string;
     dartIndex: number;
     segment: number;
     multiplier: number;
     score: number;
+    x?: number | null;
+    y?: number | null;
+    angle?: number | null;
+    radius?: number | null;
+    createdAt?: string;
   }>;
 }
 
@@ -251,7 +275,11 @@ export function getRoomMe(code: string, clientToken: string) {
   });
 }
 
-export function setRoomReady(code: string, clientToken: string, isReady: boolean) {
+export function setRoomReady(
+  code: string,
+  clientToken: string,
+  isReady: boolean,
+) {
   return request(`/api/rooms/${code.toUpperCase()}/ready`, {
     method: "PATCH",
     clientToken,
@@ -259,7 +287,11 @@ export function setRoomReady(code: string, clientToken: string, isReady: boolean
   });
 }
 
-export function startRoomGame(code: string, clientToken: string, mode: GameMode) {
+export function startRoomGame(
+  code: string,
+  clientToken: string,
+  mode: GameMode,
+) {
   return request(`/api/rooms/${code.toUpperCase()}/start`, {
     method: "POST",
     clientToken,
@@ -267,8 +299,12 @@ export function startRoomGame(code: string, clientToken: string, mode: GameMode)
   });
 }
 
-export function saveRoomDart(code: string, clientToken: string, body: SaveRoomDartBody) {
-  return request(`/api/rooms/${code.toUpperCase()}/darts`, {
+export function saveRoomDart(
+  code: string,
+  clientToken: string,
+  body: SaveRoomDartBody,
+) {
+  return request<SaveRoomDartResponse>(`/api/rooms/${code.toUpperCase()}/darts`, {
     method: "POST",
     clientToken,
     body: JSON.stringify(body),
