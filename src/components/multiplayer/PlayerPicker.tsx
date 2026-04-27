@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus, UserPlus } from "lucide-react";
 import { createPlayer, getPlayers, type PlayerDto } from "@/api/roomsApi";
 import { Button } from "@/components/ui/button";
@@ -9,23 +9,41 @@ import { cn } from "@/lib/utils";
 interface PlayerPickerProps {
   selectedPlayerIds: string[];
   onChange: (ids: string[]) => void;
+  excludedPlayerIds?: string[];
 }
 
-export function PlayerPicker({ selectedPlayerIds, onChange }: PlayerPickerProps) {
+export function PlayerPicker({
+  selectedPlayerIds,
+  onChange,
+  excludedPlayerIds = [],
+}: PlayerPickerProps) {
   const [players, setPlayers] = useState<PlayerDto[]>([]);
   const [newPlayerName, setNewPlayerName] = useState("");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const excludedSet = useMemo(
+    () => new Set(excludedPlayerIds),
+    [excludedPlayerIds],
+  );
+
+  const visiblePlayers = useMemo(
+    () => players.filter((player) => !excludedSet.has(player.id)),
+    [players, excludedSet],
+  );
+
   const loadPlayers = async () => {
     try {
       setLoading(true);
       setError(null);
+
       const data = await getPlayers();
       setPlayers(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nie udało się pobrać graczy");
+      setError(
+        err instanceof Error ? err.message : "Nie udało się pobrać graczy",
+      );
     } finally {
       setLoading(false);
     }
@@ -35,7 +53,19 @@ export function PlayerPicker({ selectedPlayerIds, onChange }: PlayerPickerProps)
     void loadPlayers();
   }, []);
 
+  useEffect(() => {
+    const filteredSelectedIds = selectedPlayerIds.filter(
+      (playerId) => !excludedSet.has(playerId),
+    );
+
+    if (filteredSelectedIds.length !== selectedPlayerIds.length) {
+      onChange(filteredSelectedIds);
+    }
+  }, [excludedSet, selectedPlayerIds, onChange]);
+
   const togglePlayer = (playerId: string) => {
+    if (excludedSet.has(playerId)) return;
+
     if (selectedPlayerIds.includes(playerId)) {
       onChange(selectedPlayerIds.filter((id) => id !== playerId));
     } else {
@@ -69,7 +99,7 @@ export function PlayerPicker({ selectedPlayerIds, onChange }: PlayerPickerProps)
       <div>
         <h2 className="font-display text-xl font-bold">Wybierz graczy</h2>
         <p className="text-sm text-muted-foreground">
-          Możesz zaznaczyć kilku graczy dla jednej przeglądarki.
+          Możesz zaznaczyć kilku graczy.
         </p>
       </div>
 
@@ -86,8 +116,15 @@ export function PlayerPicker({ selectedPlayerIds, onChange }: PlayerPickerProps)
         </div>
       )}
 
+      {!loading && visiblePlayers.length === 0 && (
+        <div className="rounded-xl border border-border bg-secondary/25 px-4 py-3 text-sm text-muted-foreground">
+          Brak dostępnych graczy do wyboru. Gracze, którzy są już w tym pokoju,
+          nie są pokazywani.
+        </div>
+      )}
+
       <div className="grid sm:grid-cols-2 gap-2">
-        {players.map((player) => {
+        {visiblePlayers.map((player) => {
           const selected = selectedPlayerIds.includes(player.id);
 
           return (
@@ -122,13 +159,19 @@ export function PlayerPicker({ selectedPlayerIds, onChange }: PlayerPickerProps)
             }
           }}
         />
-        <Button onClick={handleCreatePlayer} disabled={creating || !newPlayerName.trim()}>
+
+        <Button
+          onClick={handleCreatePlayer}
+          disabled={creating || !newPlayerName.trim()}
+        >
           {creating ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <UserPlus className="w-4 h-4" />
           )}
+
           <span className="hidden sm:inline ml-2">Dodaj</span>
+
           <span className="sm:hidden ml-2">
             <Plus className="w-4 h-4" />
           </span>

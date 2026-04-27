@@ -1,6 +1,6 @@
 export type GameMode = 301 | 501;
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 export interface PlayerDto {
   id: string;
@@ -301,6 +301,13 @@ export function restartRoomGame(
 export function closeRoom(code: string, clientToken: string) {
   return request(`/api/rooms/${code.toUpperCase()}`, {
     method: "DELETE",
+    clientToken,
+  });
+}
+
+export function leaveRoom(code: string, clientToken: string) {
+  return request(`/api/rooms/${code.toUpperCase()}/leave`, {
+    method: "POST",
     clientToken,
   });
 }

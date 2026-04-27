@@ -6,6 +6,7 @@ import {
   restartRoomGame,
   saveRoomDart,
   undoRoomAction,
+  leaveRoom,
 } from "@/api/roomsApi";
 import { Dartboard } from "@/components/Dartboard";
 import { RoomHistoryPanel } from "@/components/multiplayer/RoomHistoryPanel";
@@ -13,6 +14,7 @@ import { RoomScorePanel } from "@/components/multiplayer/RoomScorePanel";
 import { RoomTurnControls } from "@/components/multiplayer/RoomTurnControls";
 import { TurnSummaryOverlay } from "@/components/TurnSummaryOverlay";
 import { WinDialog } from "@/components/WinDialog";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useRoomPolling } from "@/hooks/useRoomPolling";
@@ -32,24 +34,19 @@ export default function RoomGame() {
   const token = session?.clientToken || "";
   const roomCode = code || session?.roomCode || "";
 
-  const {
-    room,
-    me,
-    history,
-    loading,
-    error,
-    closed,
-    refetch,
-  } = useRoomPolling({
-    code: roomCode,
-    token,
-    includeHistory: true,
-    intervalMs: 1200,
-  });
+  const { room, me, history, loading, error, closed, refetch } = useRoomPolling(
+    {
+      code: roomCode,
+      token,
+      includeHistory: true,
+      intervalMs: 1200,
+    },
+  );
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [optimisticHits, setOptimisticHits] = useState<DartHit[]>([]);
+  const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
   const [turnSummary, setTurnSummary] = useState<TurnRecord | null>(null);
 
   const lastShownTurnIdRef = useRef<string | null>(null);
@@ -65,7 +62,8 @@ export default function RoomGame() {
   const currentRoomPlayerId = game?.currentRoomPlayer?.id;
 
   const isMyTurn = Boolean(
-    currentRoomPlayerId && controlledRoomPlayerIds.includes(currentRoomPlayerId),
+    currentRoomPlayerId &&
+    controlledRoomPlayerIds.includes(currentRoomPlayerId),
   );
 
   const finished = room?.status === "FINISHED" || game?.status === "finished";
@@ -129,9 +127,20 @@ export default function RoomGame() {
     setTurnSummary(roomTurnToTurnRecord(lastTurn));
   }, [history?.turns]);
 
-  const handleLeave = () => {
-    clearRoomSession();
-    navigate("/");
+  const handleLeave = async () => {
+    try {
+      setBusy(true);
+      setActionError(null);
+
+      if (roomCode && token) {
+        await leaveRoom(roomCode, token);
+      }
+    } catch (err) {
+      console.error("Failed to leave room:", err);
+    } finally {
+      clearRoomSession();
+      navigate("/", { replace: true });
+    }
   };
 
   const handleHit = async (hit: DartHit) => {
@@ -301,7 +310,11 @@ export default function RoomGame() {
             <span className="hidden sm:inline">Odśwież</span>
           </Button>
 
-          <Button size="sm" variant="ghost" onClick={handleLeave}>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setConfirmLeaveOpen(true)}
+          >
             <ArrowLeft className="w-4 h-4 sm:mr-2" />
             <span className="hidden sm:inline">Wyjdź</span>
           </Button>
@@ -377,11 +390,23 @@ export default function RoomGame() {
         quitLabel="Zakończ pokój"
         disabled={busy}
       />
-
-      <p className="text-center text-xs text-muted-foreground mt-6">
-        REST jest źródłem prawdy dla zapisu. Socket.IO informuje ekran, kiedy
-        trzeba odświeżyć dane.
-      </p>
+      <ConfirmModal
+        open={confirmLeaveOpen}
+        title="Opuścić grę?"
+        description={
+          isHost
+            ? "Jesteś hostem pokoju. Jeśli są inni gracze, host zostanie przekazany kolejnej osobie. Jeśli jesteś ostatni, pokój zostanie zamknięty."
+            : "Zostaniesz usunięty z gry razem z graczami kontrolowanymi przez tę przeglądarkę."
+        }
+        confirmText="Tak, opuść"
+        cancelText="Anuluj"
+        danger
+        onCancel={() => setConfirmLeaveOpen(false)}
+        onConfirm={() => {
+          setConfirmLeaveOpen(false);
+          void handleLeave();
+        }}
+      />
     </main>
   );
 }
