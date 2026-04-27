@@ -311,3 +311,15 @@ export function leaveRoom(code: string, clientToken: string) {
     clientToken,
   });
 }
+
+export function transferRoomHost(
+  code: string,
+  clientToken: string,
+  targetClientId: string,
+) {
+  return request(`/api/rooms/${code.toUpperCase()}/transfer-host`, {
+    method: "POST",
+    clientToken,
+    body: JSON.stringify({ targetClientId }),
+  });
+}
