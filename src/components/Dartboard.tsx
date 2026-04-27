@@ -327,7 +327,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
                 cx={h.x}
                 cy={h.y}
                 r="6"
-                fill="hsl(var(--accent))"
+                fill="hsl(var(--dart-hit))"
                 opacity="0.25"
               />
               <line
@@ -335,7 +335,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
                 y1={h.y - 6}
                 x2={h.x + 6}
                 y2={h.y + 6}
-                stroke="hsl(var(--accent))"
+                stroke="hsl(var(--dart-hit))"
                 strokeWidth="2.4"
                 strokeLinecap="round"
               />
@@ -344,7 +344,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
                 y1={h.y + 6}
                 x2={h.x + 6}
                 y2={h.y - 6}
-                stroke="hsl(var(--accent))"
+                stroke="hsl(var(--dart-hit))"
                 strokeWidth="2.4"
                 strokeLinecap="round"
               />
