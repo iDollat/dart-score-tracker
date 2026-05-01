@@ -17,7 +17,7 @@ export function GameSetup({ onStart }: Props) {
     setNames((arr) => arr.map((n, idx) => (idx === i ? v : n)));
   const addPlayer = () => setNames((arr) => (arr.length < 8 ? [...arr, `Gracz ${arr.length + 1}`] : arr));
   const removePlayer = (i: number) =>
-    setNames((arr) => (arr.length > 2 ? arr.filter((_, idx) => idx !== i) : arr));
+    setNames((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -76,7 +76,7 @@ export function GameSetup({ onStart }: Props) {
                   size="icon"
                   variant="ghost"
                   onClick={() => removePlayer(i)}
-                  disabled={names.length <= 2}
+                  disabled={names.length <= 1}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
