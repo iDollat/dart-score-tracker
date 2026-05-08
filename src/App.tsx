@@ -1,10 +1,19 @@
 import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
+
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { PageTransition } from "@/components/PageTransition";
 import { AuthProvider } from "@/hooks/useAuth";
 
 const Home = lazy(() => import("./pages/Home"));
@@ -22,8 +31,101 @@ const queryClient = new QueryClient();
 function PageLoader() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-background text-foreground">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <Loader2 className="w-8 h-8 animate-spin text-primary-contrast" />
     </main>
+  );
+}
+
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait" initial={false}>
+      <Routes location={location} key={location.pathname}>
+        <Route
+          path="/"
+          element={
+            <PageTransition>
+              <Home />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path="/login"
+          element={
+            <PageTransition>
+              <Login />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path="/register"
+          element={
+            <PageTransition>
+              <Register />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path="/local"
+          element={
+            <PageTransition>
+              <Index />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path="/rooms/create"
+          element={
+            <PageTransition>
+              <CreateRoom />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path="/rooms/join"
+          element={
+            <PageTransition>
+              <JoinRoom />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path="/rooms/:code/lobby"
+          element={
+            <PageTransition>
+              <RoomLobby />
+            </PageTransition>
+          }
+        />
+
+        <Route
+          path="/rooms/:code/game"
+          element={
+            <PageTransition>
+              <RoomGame />
+            </PageTransition>
+          }
+        />
+
+        <Route path="/game" element={<Navigate to="/local" replace />} />
+
+        <Route
+          path="*"
+          element={
+            <PageTransition>
+              <NotFound />
+            </PageTransition>
+          }
+        />
+      </Routes>
+    </AnimatePresence>
   );
 }
 
@@ -36,18 +138,7 @@ const App = () => (
 
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/local" element={<Index />} />
-              <Route path="/rooms/create" element={<CreateRoom />} />
-              <Route path="/rooms/join" element={<JoinRoom />} />
-              <Route path="/rooms/:code/lobby" element={<RoomLobby />} />
-              <Route path="/rooms/:code/game" element={<RoomGame />} />
-              <Route path="/game" element={<Navigate to="/local" replace />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AnimatedRoutes />
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>
