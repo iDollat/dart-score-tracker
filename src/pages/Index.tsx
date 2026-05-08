@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGameState } from "@/hooks/useGameState";
+import { useAuth } from "@/hooks/useAuth";
 import { GameSetup } from "@/components/GameSetup";
 import { Dartboard } from "@/components/Dartboard";
 import { PlayerPanel } from "@/components/PlayerPanel";
@@ -11,9 +12,44 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Home, RotateCcw, Target } from "lucide-react";
 import { TurnSummaryOverlay } from "@/components/TurnSummaryOverlay";
 import { ConfirmModal } from "@/components/ConfirmModal";
+import type { GameMode } from "@/lib/gameLogic";
 
 const Index = () => {
   const navigate = useNavigate();
+
+  const { user } = useAuth();
+
+  const defaultGameSetup = useMemo<{ mode: GameMode; names: string[] }>(() => {
+    if (!user) {
+      return {
+        mode: 501,
+        names: ["Gracz 1", "Gracz 2"],
+      };
+    }
+
+    const playersCount = Math.min(Math.max(user.localPlayersCount || 2, 1), 8);
+
+    const savedNames = Array.isArray(user.localPlayerNames)
+      ? user.localPlayerNames
+      : [];
+
+    const names = Array.from({ length: playersCount }, (_, index) => {
+      const name = savedNames[index];
+
+      if (typeof name !== "string" || name.trim().length === 0) {
+        return `Gracz ${index + 1}`;
+      }
+
+      return name.trim();
+    });
+
+    const mode: GameMode = user.defaultGameMode === 301 ? 301 : 501;
+
+    return {
+      mode,
+      names,
+    };
+  }, [user]);
 
   const {
     state,
@@ -49,7 +85,11 @@ const Index = () => {
             Dart Score Tracker — interaktywna tarcza do darta 301 i 501
           </h1>
 
-          <GameSetup onStart={newGame} />
+          <GameSetup
+            onStart={newGame}
+            initialMode={defaultGameSetup.mode}
+            initialNames={defaultGameSetup.names}
+          />
         </div>
       </main>
     );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -7,11 +7,36 @@ import type { GameMode } from "@/lib/gameLogic";
 
 interface Props {
   onStart: (mode: GameMode, names: string[]) => void;
+  initialMode?: GameMode;
+  initialNames?: string[];
 }
 
-export function GameSetup({ onStart }: Props) {
-  const [mode, setMode] = useState<GameMode>(501);
-  const [names, setNames] = useState<string[]>(["Gracz 1", "Gracz 2"]);
+function normalizeInitialNames(names: string[] | undefined) {
+  if (!names || names.length === 0) {
+    return ["Gracz 1", "Gracz 2"];
+  }
+
+  return names.slice(0, 8).map((name, index) => {
+    const trimmedName = name.trim();
+
+    return trimmedName.length > 0 ? trimmedName : `Gracz ${index + 1}`;
+  });
+}
+
+export function GameSetup({
+  onStart,
+  initialMode = 501,
+  initialNames,
+}: Props) {
+  const [mode, setMode] = useState<GameMode>(initialMode);
+  const [names, setNames] = useState<string[]>(
+    normalizeInitialNames(initialNames),
+  );
+
+  useEffect(() => {
+    setMode(initialMode);
+    setNames(normalizeInitialNames(initialNames));
+  }, [initialMode, initialNames]);
 
   const updateName = (i: number, v: string) =>
     setNames((arr) => arr.map((n, idx) => (idx === i ? v : n)));
@@ -26,6 +51,16 @@ export function GameSetup({ onStart }: Props) {
       arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr,
     );
 
+  const handleStart = () => {
+    const finalNames = names.map((name, index) => {
+      const trimmedName = name.trim();
+
+      return trimmedName.length > 0 ? trimmedName : `Gracz ${index + 1}`;
+    });
+
+    onStart(mode, finalNames);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-xl p-6 sm:p-8 shadow-card-elev border-border/60 bg-card/80 backdrop-blur">
@@ -38,7 +73,6 @@ export function GameSetup({ onStart }: Props) {
             <h1 className="font-display text-3xl font-bold leading-none">
               DART<span className="text-primary">501</span>
             </h1>
-
             <p className="text-sm text-muted-foreground">Score Tracker</p>
           </div>
         </div>
@@ -49,26 +83,20 @@ export function GameSetup({ onStart }: Props) {
           </h2>
 
           <div className="grid grid-cols-2 gap-3">
-            {[301, 501].map((m) => {
-              const selected = mode === m;
-
-              return (
-                <button
-                  key={m}
-                  type="button"
-                  aria-label={`Wybierz tryb gry ${m}`}
-                  aria-pressed={selected}
-                  onClick={() => setMode(m as GameMode)}
-                  className={`py-6 rounded-xl border-2 font-display text-3xl font-bold transition-all ${
-                    selected
-                      ? "border-primary bg-primary/10 text-primary shadow-glow"
-                      : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/40"
-                  }`}
-                >
-                  {m}
-                </button>
-              );
-            })}
+            {[301, 501].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m as GameMode)}
+                className={`py-6 rounded-xl border-2 font-display text-3xl font-bold transition-all ${
+                  mode === m
+                    ? "border-primary bg-primary/10 text-primary shadow-glow"
+                    : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/40"
+                }`}
+              >
+                {m}
+              </button>
+            ))}
           </div>
         </section>
 
@@ -79,7 +107,6 @@ export function GameSetup({ onStart }: Props) {
             </h2>
 
             <Button
-              type="button"
               size="sm"
               variant="secondary"
               onClick={addPlayer}
@@ -91,50 +118,37 @@ export function GameSetup({ onStart }: Props) {
           </div>
 
           <div className="space-y-2">
-            {names.map((n, i) => {
-              const inputId = `player-name-${i}`;
-
-              return (
-                <div key={i} className="flex gap-2">
-                  <div className="w-9 h-9 rounded-md bg-secondary flex items-center justify-center font-display text-primary">
-                    {i + 1}
-                  </div>
-
-                  <div className="flex-1">
-                    <label htmlFor={inputId} className="sr-only">
-                      Nazwa gracza {i + 1}
-                    </label>
-
-                    <Input
-                      id={inputId}
-                      value={n}
-                      onChange={(e) => updateName(i, e.target.value)}
-                      maxLength={20}
-                      className="bg-secondary/50"
-                    />
-                  </div>
-
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    aria-label={`Usuń gracza ${i + 1}`}
-                    onClick={() => removePlayer(i)}
-                    disabled={names.length <= 1}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+            {names.map((n, i) => (
+              <div key={i} className="flex gap-2">
+                <div className="w-9 h-9 rounded-md bg-secondary flex items-center justify-center font-display text-primary">
+                  {i + 1}
                 </div>
-              );
-            })}
+
+                <Input
+                  value={n}
+                  onChange={(e) => updateName(i, e.target.value)}
+                  maxLength={20}
+                  className="bg-secondary/50"
+                />
+
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  aria-label={`Usuń gracza ${i + 1}`}
+                  onClick={() => removePlayer(i)}
+                  disabled={names.length <= 1}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
           </div>
         </section>
 
         <Button
-          type="button"
           size="lg"
           className="w-full font-display text-lg uppercase tracking-wide bg-gradient-primary hover:opacity-90 shadow-glow"
-          onClick={() => onStart(mode, names)}
+          onClick={handleStart}
         >
           <Play className="w-5 h-5 mr-2" />
           Rozpocznij grę
@@ -142,4 +156,4 @@ export function GameSetup({ onStart }: Props) {
       </Card>
     </div>
   );
-} 
+}

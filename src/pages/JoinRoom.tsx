@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, DoorOpen, Eye, Loader2 } from "lucide-react";
 import {
+  createPlayer,
+  getPlayers,
   getRoom,
   joinRoom,
   joinRoomAsSpectator,
@@ -11,14 +13,18 @@ import { PlayerPicker } from "@/components/multiplayer/PlayerPicker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/useAuth";
+import { normalizePlayerName } from "@/lib/players";
 import { saveRoomSession } from "@/lib/roomSession";
 
 export default function JoinRoom() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [roomCode, setRoomCode] = useState("");
   const [room, setRoom] = useState<RoomDto | null>(null);
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
+  const [lockedPlayerId, setLockedPlayerId] = useState<string | null>(null);
   const [excludedPlayerIds, setExcludedPlayerIds] = useState<string[]>([]);
   const [joiningAsPlayer, setJoiningAsPlayer] = useState(false);
   const [joiningAsSpectator, setJoiningAsSpectator] = useState(false);
@@ -26,15 +32,40 @@ export default function JoinRoom() {
   const [roomCheckError, setRoomCheckError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const autoSelectedUserPlayerRef = useRef(false);
+
   const normalizedRoomCode = roomCode.trim().toUpperCase();
   const canCheckRoom = normalizedRoomCode.length >= 5;
   const roomCanAcceptPlayers = room?.status === "WAITING";
   const busy = joiningAsPlayer || joiningAsSpectator;
 
+  const handleSelectedPlayerIdsChange = useCallback(
+    (nextPlayerIds: string[]) => {
+      if (!lockedPlayerId) {
+        setSelectedPlayerIds(nextPlayerIds);
+        return;
+      }
+
+      const nextIdsWithoutDuplicates = Array.from(
+        new Set(
+          nextPlayerIds.includes(lockedPlayerId)
+            ? nextPlayerIds
+            : [lockedPlayerId, ...nextPlayerIds],
+        ),
+      );
+
+      setSelectedPlayerIds(nextIdsWithoutDuplicates);
+    },
+    [lockedPlayerId],
+  );
+
   useEffect(() => {
+    autoSelectedUserPlayerRef.current = false;
+
     setRoom(null);
     setExcludedPlayerIds([]);
     setSelectedPlayerIds([]);
+    setLockedPlayerId(null);
     setRoomCheckError(null);
     setError(null);
 
@@ -69,9 +100,7 @@ export default function JoinRoom() {
           setRoom(null);
           setExcludedPlayerIds([]);
           setRoomCheckError(
-            err instanceof Error
-              ? err.message
-              : "Nie udało się pobrać pokoju",
+            err instanceof Error ? err.message : "Nie udało się pobrać pokoju",
           );
         } finally {
           if (!cancelled) {
@@ -87,8 +116,82 @@ export default function JoinRoom() {
     };
   }, [normalizedRoomCode, canCheckRoom]);
 
+  useEffect(() => {
+    if (!user?.displayName) return;
+    if (!room) return;
+    if (!roomCanAcceptPlayers) return;
+    if (autoSelectedUserPlayerRef.current) return;
+    if (selectedPlayerIds.length > 0) return;
+
+    let cancelled = false;
+
+    const autoSelectUserPlayer = async () => {
+      try {
+        const userPlayerName = user.displayName.trim();
+
+        if (!userPlayerName) return;
+
+        const players = await getPlayers();
+
+        if (cancelled) return;
+
+        const normalizedUserPlayerName = normalizePlayerName(userPlayerName);
+
+        const existingAvailablePlayer = players.find(
+          (player) =>
+            normalizePlayerName(player.name) === normalizedUserPlayerName &&
+            !excludedPlayerIds.includes(player.id),
+        );
+
+        if (existingAvailablePlayer) {
+          autoSelectedUserPlayerRef.current = true;
+          setLockedPlayerId(existingAvailablePlayer.id);
+          setSelectedPlayerIds([existingAvailablePlayer.id]);
+          return;
+        }
+
+        const existingPlayerAlreadyInRoom = players.find(
+          (player) =>
+            normalizePlayerName(player.name) === normalizedUserPlayerName &&
+            excludedPlayerIds.includes(player.id),
+        );
+
+        if (existingPlayerAlreadyInRoom) {
+          autoSelectedUserPlayerRef.current = true;
+          setError(
+            "Gracz z nazwą Twojego konta jest już w tym pokoju. Możesz dołączyć jako widz albo wybrać innego gracza.",
+          );
+          return;
+        }
+
+        const createdPlayer = await createPlayer(userPlayerName);
+
+        if (cancelled) return;
+
+        autoSelectedUserPlayerRef.current = true;
+        setLockedPlayerId(createdPlayer.id);
+        setSelectedPlayerIds([createdPlayer.id]);
+      } catch (err) {
+        console.error("Failed to auto-select user player:", err);
+      }
+    };
+
+    void autoSelectUserPlayer();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    user?.displayName,
+    room,
+    roomCanAcceptPlayers,
+    selectedPlayerIds.length,
+    excludedPlayerIds,
+  ]);
+
   const getTargetRoute = (responseRoom: { code: string; status: string }) => {
-    return responseRoom.status === "IN_GAME" || responseRoom.status === "FINISHED"
+    return responseRoom.status === "IN_GAME" ||
+      responseRoom.status === "FINISHED"
       ? `/rooms/${responseRoom.code}/game`
       : `/rooms/${responseRoom.code}/lobby`;
   };
@@ -168,9 +271,7 @@ export default function JoinRoom() {
       navigate(getTargetRoute(response.room));
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "Nie udało się dołączyć jako widz",
+        err instanceof Error ? err.message : "Nie udało się dołączyć jako widz",
       );
     } finally {
       setJoiningAsSpectator(false);
@@ -180,7 +281,7 @@ export default function JoinRoom() {
   return (
     <main className="min-h-screen bg-background text-foreground p-4">
       <div className="max-w-3xl mx-auto space-y-4">
-        <Button variant="ghost" onClick={() => navigate("/")}> 
+        <Button variant="ghost" onClick={() => navigate("/")}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Wróć
         </Button>
@@ -238,7 +339,7 @@ export default function JoinRoom() {
         {room && roomCanAcceptPlayers && (
           <PlayerPicker
             selectedPlayerIds={selectedPlayerIds}
-            onChange={setSelectedPlayerIds}
+            onChange={handleSelectedPlayerIdsChange}
             excludedPlayerIds={excludedPlayerIds}
           />
         )}
