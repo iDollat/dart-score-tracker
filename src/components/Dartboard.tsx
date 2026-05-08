@@ -296,7 +296,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   }, []);
 
   return (
-    <div className="relative z-50 w-full max-w-[520px] mx-auto select-none no-touch-callout overflow-visible">
+    <div className="relative z-50 w-full max-w-[520px] [@media(min-width:1024px)_and_(min-height:1200px)]:max-w-[min(520px,calc(100vh-220px))] mx-auto select-none no-touch-callout overflow-visible">
       <svg
         ref={svgRef}
         viewBox="0 0 400 430"

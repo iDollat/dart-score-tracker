@@ -455,8 +455,8 @@ export default function RoomGame() {
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground p-3 sm:p-5 max-w-7xl mx-auto overflow-x-hidden">
-      <header className="flex items-center justify-between mb-4 gap-2">
+    <main className="min-h-screen bg-background text-foreground p-3 sm:p-5 max-w-7xl mx-auto overflow-x-hidden [@media(min-width:1024px)_and_(min-height:1200px)]:h-screen [@media(min-width:1024px)_and_(min-height:1200px)]:overflow-hidden [@media(min-width:1024px)_and_(min-height:1200px)]:flex [@media(min-width:1024px)_and_(min-height:1200px)]:flex-col">
+      <header className="flex items-center justify-between mb-4 gap-2 [@media(min-width:1024px)_and_(min-height:1200px)]:shrink-0">
         <div>
           <h1 className="font-display text-xl font-bold leading-none">
             Pokój <span className="text-primary">{room.code}</span> ·{" "}
@@ -511,17 +511,19 @@ export default function RoomGame() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[1fr_320px] gap-4">
-        <section className="relative overflow-visible space-y-4">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-4 [@media(min-width:1024px)_and_(min-height:1200px)]:min-h-0 [@media(min-width:1024px)_and_(min-height:1200px)]:flex-1">
+        <section className="relative overflow-visible space-y-4 [@media(min-width:1024px)_and_(min-height:1200px)]:min-h-0 [@media(min-width:1024px)_and_(min-height:1200px)]:flex [@media(min-width:1024px)_and_(min-height:1200px)]:flex-col">
           <div className="relative z-10 lg:hidden">
             <RoomScorePanel game={game} />
           </div>
 
-          <Dartboard
-            onHit={handleHit}
-            recentHits={recentHits}
-            disabled={dartboardDisabled}
-          />
+          <div className="[@media(min-width:1024px)_and_(min-height:1200px)]:min-h-0 [@media(min-width:1024px)_and_(min-height:1200px)]:flex-1 [@media(min-width:1024px)_and_(min-height:1200px)]:flex [@media(min-width:1024px)_and_(min-height:1200px)]:items-center [@media(min-width:1024px)_and_(min-height:1200px)]:justify-center">
+            <Dartboard
+              onHit={handleHit}
+              recentHits={recentHits}
+              disabled={dartboardDisabled}
+            />
+          </div>
 
           <RoomTurnControls
             pendingDarts={game.pendingDarts}
@@ -531,7 +533,7 @@ export default function RoomGame() {
           />
         </section>
 
-        <aside className="space-y-4">
+        <aside className="space-y-4 [@media(min-width:1024px)_and_(min-height:1200px)]:min-h-0 [@media(min-width:1024px)_and_(min-height:1200px)]:overflow-hidden">
           <div className="hidden lg:block">
             <RoomScorePanel game={game} />
           </div>
