@@ -66,13 +66,10 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     const padding = 8;
     const lensOffsetY = 115;
 
-    const preferredLeft = clientX - lensR;
+    const left = clientX - lensR;
+
     const preferredTop = clientY - lensOffsetY - lensR;
-
-    const maxLeft = window.innerWidth - lensSize - padding;
     const maxTop = window.innerHeight - lensSize - padding;
-
-    const left = Math.max(padding, Math.min(maxLeft, preferredLeft));
     const top = Math.max(padding, Math.min(maxTop, preferredTop));
 
     const lensCenterClientX = left + lensR;
@@ -456,13 +453,10 @@ function ZoomLens({
   const lensOffsetY = 115;
   const zoom = 3;
 
-  const preferredLeft = clientX - lensR;
+  const left = clientX - lensR;
+
   const preferredTop = clientY - lensOffsetY - lensR;
-
-  const maxLeft = window.innerWidth - lensSize - padding;
   const maxTop = window.innerHeight - lensSize - padding;
-
-  const left = Math.max(padding, Math.min(maxLeft, preferredLeft));
   const top = Math.max(padding, Math.min(maxTop, preferredTop));
 
   const lensCx = lensR;
