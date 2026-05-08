@@ -32,7 +32,13 @@ const LONG_PRESS_MS = 350;
 
 export function Dartboard({ onHit, recentHits, disabled }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [aim, setAim] = useState<{ x: number; y: number } | null>(null); // współrzędne w viewBox
+  const [aim, setAim] = useState<{
+    x: number;
+    y: number;
+    clientX: number;
+    clientY: number;
+    useLensTarget: boolean;
+  } | null>(null);
   const longPressTimer = useRef<number | null>(null);
   const pressActive = useRef(false);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
@@ -48,6 +54,31 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     const x = ((clientX - rect.left) / rect.width) * 400;
     const y = ((clientY - rect.top) / rect.height) * 400;
     return { x, y };
+  };
+
+  const isMobilePointer = (event: React.PointerEvent) => {
+    return event.pointerType === "touch" || event.pointerType === "pen";
+  };
+
+  const getLensTargetCoords = (clientX: number, clientY: number) => {
+    const lensR = 60;
+    const lensSize = lensR * 2;
+    const padding = 8;
+    const lensOffsetY = 115;
+
+    const preferredLeft = clientX - lensR;
+    const preferredTop = clientY - lensOffsetY - lensR;
+
+    const maxLeft = window.innerWidth - lensSize - padding;
+    const maxTop = window.innerHeight - lensSize - padding;
+
+    const left = Math.max(padding, Math.min(maxLeft, preferredLeft));
+    const top = Math.max(padding, Math.min(maxTop, preferredTop));
+
+    const lensCenterClientX = left + lensR;
+    const lensCenterClientY = top + lensR;
+
+    return toSvgCoords(lensCenterClientX, lensCenterClientY);
   };
 
   const cancelLongPress = () => {
@@ -101,7 +132,12 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
       }
 
       lockPageScroll();
-      setAim(pt);
+      setAim({
+        ...pt,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        useLensTarget: isMobilePointer(e),
+      });
     }, LONG_PRESS_MS);
   };
 
@@ -113,7 +149,12 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     // PO long pressie: celujemy i blokujemy scroll
     if (aimActive.current) {
       e.preventDefault();
-      setAim(pt);
+      setAim({
+        ...pt,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        useLensTarget: isMobilePointer(e),
+      });
       return;
     }
 
@@ -148,7 +189,11 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     if (aimActive.current && aim) {
       e.preventDefault();
 
-      const hit = computeHit(aim.x, aim.y);
+      const target = aim.useLensTarget
+        ? getLensTargetCoords(aim.clientX, aim.clientY)
+        : { x: aim.x, y: aim.y };
+
+      const hit = computeHit(target.x, target.y);
       onHit(hit);
 
       setAim(null);
@@ -165,13 +210,13 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   };
 
   const handlePointerCancel = () => {
-  // Jeśli zoom już jest aktywny, nie zamykamy go przy pointercancel,
-  // bo mobile potrafi wysłać cancel przy próbie scrolla.
-  if (aimActive.current) {
-    return;
-  }
+    // Jeśli zoom już jest aktywny, nie zamykamy go przy pointercancel,
+    // bo mobile potrafi wysłać cancel przy próbie scrolla.
+    if (aimActive.current) {
+      return;
+    }
 
-  cancelLongPress();
+    cancelLongPress();
     pressActive.current = false;
     aimActive.current = false;
     setAim(null);
@@ -351,11 +396,6 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
             </g>
           ))}
 
-          {/* Lupa / zoom z celownikiem (tryb precyzyjny) */}
-          {aim && (
-            <ZoomLens cx={aim.x} cy={aim.y} hit={computeHit(aim.x, aim.y)} />
-          )}
-
           {/* Etykieta trybu precyzyjnego */}
           {aim && (
             <text
@@ -381,115 +421,164 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         */}
         <rect x="0" y="0" width="400" height="430" fill="transparent" />
       </svg>
+      {aim && (
+        <ZoomLens
+          cx={aim.x}
+          cy={aim.y}
+          clientX={aim.clientX}
+          clientY={aim.clientY}
+          svgRef={svgRef}
+          useLensTarget={aim.useLensTarget}
+        />
+      )}
     </div>
   );
 }
 
-function ZoomLens({ cx, cy, hit }: { cx: number; cy: number; hit: DartHit }) {
+function ZoomLens({
+  cx,
+  cy,
+  clientX,
+  clientY,
+  svgRef,
+  useLensTarget,
+}: {
+  cx: number;
+  cy: number;
+  clientX: number;
+  clientY: number;
+  svgRef: React.RefObject<SVGSVGElement>;
+  useLensTarget: boolean;
+}) {
   const lensR = 60;
-  const lensCx = Math.max(lensR + 5, Math.min(400 - lensR - 5, cx));
+  const lensSize = lensR * 2;
+  const padding = 8;
   const lensOffsetY = 115;
-  const lensCy = cy - lensOffsetY;
   const zoom = 3;
 
-  const label = hit.label || "MISS";
+  const preferredLeft = clientX - lensR;
+  const preferredTop = clientY - lensOffsetY - lensR;
+
+  const maxLeft = window.innerWidth - lensSize - padding;
+  const maxTop = window.innerHeight - lensSize - padding;
+
+  const left = Math.max(padding, Math.min(maxLeft, preferredLeft));
+  const top = Math.max(padding, Math.min(maxTop, preferredTop));
+
+  const lensCx = lensR;
+  const lensCy = lensR;
+
+  const svg = svgRef.current;
+  const rect = svg?.getBoundingClientRect();
+
+  const lensCenterClientX = left + lensR;
+  const lensCenterClientY = top + lensR;
+
+  const lensTargetX =
+    useLensTarget && rect
+      ? ((lensCenterClientX - rect.left) / rect.width) * 400
+      : cx;
+
+  const lensTargetY =
+    useLensTarget && rect
+      ? ((lensCenterClientY - rect.top) / rect.height) * 400
+      : cy;
+
+  const label = computeHit(lensTargetX, lensTargetY).label || "MISS";
 
   return (
-    <g className="pointer-events-none">
-      <defs>
-        <clipPath id="lens-clip">
-          <circle cx={lensCx} cy={lensCy} r={lensR} />
-        </clipPath>
-      </defs>
+    <div
+      className="pointer-events-none fixed z-[9999]"
+      style={{
+        left,
+        top,
+        width: lensSize,
+        height: lensSize,
+      }}
+    >
+      <svg
+        viewBox={`0 0 ${lensSize} ${lensSize}`}
+        width={lensSize}
+        height={lensSize}
+        className="block overflow-visible"
+      >
+        <defs>
+          <clipPath id="lens-clip">
+            <circle cx={lensCx} cy={lensCy} r={lensR} />
+          </clipPath>
+        </defs>
 
-      <line
-        x1={cx}
-        y1={cy}
-        x2={lensCx}
-        y2={lensCy}
-        stroke="hsl(var(--accent))"
-        strokeWidth="1.5"
-        strokeDasharray="3 3"
-        opacity="0.7"
-      />
-
-      <circle
-        cx={lensCx}
-        cy={lensCy}
-        r={lensR + 2}
-        fill="hsl(var(--background))"
-        stroke="hsl(var(--accent))"
-        strokeWidth="2"
-      />
-
-      <g clipPath="url(#lens-clip)">
-        <g
-          transform={`translate(${lensCx} ${lensCy}) scale(${zoom}) translate(${-cx} ${-cy})`}
-        >
-          <BoardClone />
-        </g>
-
-        <line
-          x1={lensCx - lensR + 6}
-          y1={lensCy}
-          x2={lensCx + lensR - 6}
-          y2={lensCy}
-          stroke="hsl(var(--accent))"
-          strokeWidth="1"
-        />
-        <line
-          x1={lensCx}
-          y1={lensCy - lensR + 6}
-          x2={lensCx}
-          y2={lensCy + lensR - 6}
-          stroke="hsl(var(--accent))"
-          strokeWidth="1"
-        />
         <circle
           cx={lensCx}
           cy={lensCy}
-          r="10"
-          fill="none"
+          r={lensR}
+          fill="hsl(var(--background))"
           stroke="hsl(var(--accent))"
-          strokeWidth="1.5"
-        />
-        <circle cx={lensCx} cy={lensCy} r="2" fill="hsl(var(--accent))" />
-
-        {/* Aktualne pole pod celownikiem */}
-        <rect
-          x={lensCx - 32}
-          y={lensCy - lensR + 8}
-          width="64"
-          height="26"
-          rx="13"
-          fill="hsl(var(--background) / 0.85)"
-          stroke="hsl(var(--accent))"
-          strokeWidth="1"
+          strokeWidth="2"
         />
 
-        <text
-          x={lensCx}
-          y={lensCy - lensR + 25}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize="16"
-          fontWeight="900"
-          fontFamily="Oswald, Inter, sans-serif"
-          fill="hsl(var(--accent))"
-        >
-          {label}
-        </text>
-      </g>
+        <g clipPath="url(#lens-clip)">
+          <g
+            transform={`translate(${lensCx} ${lensCy}) scale(${zoom}) translate(${-lensTargetX} ${-lensTargetY})`}
+          >
+            <BoardClone />
+          </g>
 
-      <circle
-        cx={cx}
-        cy={cy}
-        r="14"
-        fill="hsl(var(--accent) / 0.15)"
-        stroke="hsl(var(--accent))"
-        strokeWidth="1"
-      />
-    </g>
+          <line
+            x1={lensCx - lensR + 6}
+            y1={lensCy}
+            x2={lensCx + lensR - 6}
+            y2={lensCy}
+            stroke="hsl(var(--accent))"
+            strokeWidth="1"
+          />
+
+          <line
+            x1={lensCx}
+            y1={lensCy - lensR + 6}
+            x2={lensCx}
+            y2={lensCy + lensR - 6}
+            stroke="hsl(var(--accent))"
+            strokeWidth="1"
+          />
+
+          <circle
+            cx={lensCx}
+            cy={lensCy}
+            r="10"
+            fill="none"
+            stroke="hsl(var(--accent))"
+            strokeWidth="1.5"
+          />
+
+          <circle cx={lensCx} cy={lensCy} r="2" fill="hsl(var(--accent))" />
+
+          <rect
+            x={lensCx - 32}
+            y={lensCy - lensR + 8}
+            width="64"
+            height="26"
+            rx="13"
+            fill="hsl(var(--background) / 0.85)"
+            stroke="hsl(var(--accent))"
+            strokeWidth="1"
+          />
+
+          <text
+            x={lensCx}
+            y={lensCy - lensR + 25}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="16"
+            fontWeight="900"
+            fontFamily="Oswald, Inter, sans-serif"
+            fill="hsl(var(--accent))"
+          >
+            {label}
+          </text>
+        </g>
+      </svg>
+    </div>
   );
 }
 

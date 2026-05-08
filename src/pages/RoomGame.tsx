@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Eye, Loader2, RefreshCcw, Trophy } from "lucide-react";
 import {
@@ -127,6 +127,54 @@ export default function RoomGame() {
     setOptimisticHits([]);
   }, [game?.pendingDarts.length, game?.currentRoomPlayer?.id]);
 
+  const clearTransitionTimers = useCallback(() => {
+    transitionTimersRef.current.forEach((timerId) => {
+      window.clearTimeout(timerId);
+    });
+
+    transitionTimersRef.current = [];
+  }, []);
+
+  const startTurnTransition = useCallback(
+    (turn: NonNullable<typeof history>["turns"][number]) => {
+      clearTransitionTimers();
+
+      const transitionHits = turn.darts.map(roomTurnDartToHit);
+      const summary = roomTurnToTurnRecord(turn);
+
+      setOptimisticHits([]);
+      setTurnSummary(null);
+
+      setTurnTransition({
+        turnId: turn.id,
+        phase: "pause",
+        hits: transitionHits,
+        playerName: turn.player.name,
+      });
+
+      const showSummaryTimer = window.setTimeout(() => {
+        setTurnTransition((current) =>
+          current?.turnId === turn.id
+            ? {
+                ...current,
+                phase: "summary",
+              }
+            : current,
+        );
+
+        setTurnSummary(summary);
+      }, TURN_DARTS_PAUSE_MS);
+
+      const finishTransitionTimer = window.setTimeout(() => {
+        setTurnSummary(null);
+        setTurnTransition(null);
+      }, TURN_DARTS_PAUSE_MS + TURN_SUMMARY_MS);
+
+      transitionTimersRef.current = [showSummaryTimer, finishTransitionTimer];
+    },
+    [clearTransitionTimers],
+  );
+
   useEffect(() => {
     const turns = history?.turns || [];
 
@@ -154,60 +202,13 @@ export default function RoomGame() {
 
     lastShownTurnIdRef.current = lastTurn.id;
     startTurnTransition(lastTurn);
-  }, [history?.turns]);
+  }, [history?.turns, startTurnTransition]);
 
   useEffect(() => {
     return () => {
       clearTransitionTimers();
     };
-  }, []);
-
-  const clearTransitionTimers = () => {
-    transitionTimersRef.current.forEach((timerId) => {
-      window.clearTimeout(timerId);
-    });
-
-    transitionTimersRef.current = [];
-  };
-
-  const startTurnTransition = (
-    turn: NonNullable<typeof history>["turns"][number],
-  ) => {
-    clearTransitionTimers();
-
-    const transitionHits = turn.darts.map(roomTurnDartToHit);
-    const summary = roomTurnToTurnRecord(turn);
-
-    setOptimisticHits([]);
-    setTurnSummary(null);
-
-    setTurnTransition({
-      turnId: turn.id,
-      phase: "pause",
-      hits: transitionHits,
-      playerName: turn.player.name,
-    });
-
-    const showSummaryTimer = window.setTimeout(() => {
-      setTurnTransition((current) =>
-        current?.turnId === turn.id
-          ? {
-              ...current,
-              phase: "summary",
-            }
-          : current,
-      );
-
-      setTurnSummary(summary);
-    }, TURN_DARTS_PAUSE_MS);
-
-    const finishTransitionTimer = window.setTimeout(() => {
-      setTurnSummary(null);
-      setTurnTransition(null);
-    }, TURN_DARTS_PAUSE_MS + TURN_SUMMARY_MS);
-
-    transitionTimersRef.current = [showSummaryTimer, finishTransitionTimer];
-  };
+  }, [clearTransitionTimers]);
 
   const handleLeave = async () => {
     try {
