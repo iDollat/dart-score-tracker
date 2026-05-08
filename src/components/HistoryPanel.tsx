@@ -33,7 +33,7 @@ export function HistoryPanel({ history }: Props) {
               </div>
               <div className="text-right shrink-0">
                 {t.bust ? (
-                  <span className="font-display text-destructive">BUST</span>
+                  <span className="font-display text-destructive-contrast">BUST</span>
                 ) : (
                   <span className="font-display text-accent">−{t.totalScored}</span>
                 )}

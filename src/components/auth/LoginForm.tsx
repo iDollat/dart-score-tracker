@@ -56,41 +56,65 @@ export function LoginForm() {
   return (
     <>
       {submitError && (
-        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div
+          role="alert"
+          className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-contrast"
+        >
           {submitError}
         </div>
       )}
 
       <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
         <div>
-          <label className="mb-1 block text-sm font-medium">Email</label>
+          <label
+            htmlFor="login-email"
+            className="mb-1 block text-sm font-medium"
+          >
+            Email
+          </label>
 
           <Input
+            id="login-email"
             type="email"
             autoComplete="email"
             className="bg-secondary/50"
+            aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "login-email-error" : undefined}
             {...register("email")}
           />
 
           {errors.email && (
-            <p className="mt-1 text-sm text-destructive">
+            <p id="login-email-error" className="mt-1 text-sm text-destructive-contrast">
               {errors.email.message}
             </p>
           )}
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Hasło</label>
+          <label
+            htmlFor="login-password"
+            className="mb-1 block text-sm font-medium"
+          >
+            Hasło
+          </label>
 
           <Input
+            id="login-password"
             type="password"
             autoComplete="current-password"
             className="bg-secondary/50"
+            aria-invalid={Boolean(errors.password)}
+            aria-describedby={
+              errors.password ? "login-password-error" : undefined
+            }
             {...register("password")}
           />
 
           {errors.password && (
-            <p className="mt-1 text-sm text-destructive">
+            <p
+              id="login-password-error"
+              className="mt-1 text-sm text-destructive-contrast"
+            >
               {errors.password.message}
             </p>
           )}
@@ -109,7 +133,7 @@ export function LoginForm() {
 
       <p className="mt-5 text-center text-sm text-muted-foreground">
         Nie masz konta?{" "}
-        <Link to="/register" className="font-semibold text-primary underline">
+        <Link to="/register" className="font-semibold text-primary-contrast underline underline-offset-2">
           Zarejestruj się
         </Link>
       </p>

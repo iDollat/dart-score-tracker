@@ -63,6 +63,11 @@
     --border: 220 18% 20%;
     --input: 220 18% 20%;
     --ring: 14 90% 55%;
+    --focus-outline: 48 96% 56%;
+
+    /* jaśniejsze kolory tylko do tekstu/ikon na ciemnym tle */
+    --primary-contrast: 14 95% 65%;
+    --destructive-contrast: 0 100% 78%;
 
     --radius: 0.75rem;
 
@@ -72,8 +77,16 @@
     --board-green: 142 65% 38%;
     --board-wire: 45 25% 70%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(14 90% 55%), hsl(14 95% 65%));
-    --gradient-bg: radial-gradient(ellipse at top, hsl(220 30% 14%), hsl(220 26% 8%));
+    --gradient-primary: linear-gradient(
+      135deg,
+      hsl(14 90% 55%),
+      hsl(14 95% 65%)
+    );
+    --gradient-bg: radial-gradient(
+      ellipse at top,
+      hsl(220 30% 14%),
+      hsl(220 26% 8%)
+    );
     --shadow-glow: 0 0 40px hsl(14 90% 55% / 0.3);
     --shadow-card: 0 8px 32px hsl(220 30% 4% / 0.5);
   }
@@ -98,6 +111,12 @@
     --border: 220 18% 20%;
     --input: 220 18% 20%;
     --ring: 14 90% 55%;
+
+    --focus-outline: 48 96% 56%;
+
+    /* jaśniejsze kolory tylko do tekstu/ikon na ciemnym tle */
+    --primary-contrast: 14 95% 65%;
+    --destructive-contrast: 0 100% 78%;
   }
 }
 
@@ -120,7 +139,11 @@
     background-attachment: fixed;
     background-repeat: no-repeat;
     background-size: cover;
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family:
+      "Inter",
+      system-ui,
+      -apple-system,
+      sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -131,7 +154,7 @@
   }
 
   .font-display {
-    font-family: 'Oswald', 'Inter', sans-serif;
+    font-family: "Oswald", "Inter", sans-serif;
     letter-spacing: 0.02em;
   }
 }
@@ -182,5 +205,23 @@
 
   .turn-summary-card {
     animation: turn-summary-pop 3.8s ease-in-out forwards;
+  }
+
+  .focus-ring {
+    outline: none;
+  }
+
+  .focus-ring:focus-visible {
+    outline: 3px solid hsl(var(--focus-outline));
+    outline-offset: 3px;
+    box-shadow: 0 0 0 6px hsl(var(--focus-outline) / 0.2);
+  }
+
+  .text-primary-contrast {
+    color: hsl(var(--primary-contrast));
+  }
+
+  .text-destructive-contrast {
+    color: hsl(var(--destructive-contrast));
   }
 }

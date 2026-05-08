@@ -75,7 +75,9 @@ export default function RoomLobby() {
       hostTransferTarget.players
         .map((roomPlayer) => roomPlayer.player.name)
         .filter(Boolean)
-        .join(", ") || hostTransferTarget.name || "Klient"
+        .join(", ") ||
+      hostTransferTarget.name ||
+      "Klient"
     );
   }, [hostTransferTarget]);
 
@@ -188,7 +190,7 @@ export default function RoomLobby() {
           <h1 className="font-display text-2xl font-bold">
             Nie udało się pobrać lobby
           </h1>
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-destructive-contrast">
             {error || "Brak danych pokoju"}
           </p>
           <div className="flex justify-center gap-2">
@@ -300,9 +302,9 @@ export default function RoomLobby() {
                             disabled={busy}
                             onClick={() => setHostTransferTarget(client)}
                             className={cn(
-                              "peer inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-400 text-amber-400",
+                              "focus-ring peer inline-flex h-9 w-9 items-center justify-center rounded-full border border-amber-400 text-amber-300",
                               "bg-background/80 opacity-0 transition-all",
-                              "group-hover:opacity-100",
+                              "group-hover:opacity-100 focus-visible:opacity-100",
                               "hover:bg-amber-400 hover:text-amber-950 hover:shadow-glow",
                               "disabled:pointer-events-none disabled:opacity-40",
                             )}
@@ -349,10 +351,13 @@ export default function RoomLobby() {
                   key={client.id}
                   className={cn(
                     "rounded-full border px-3 py-1 text-xs bg-secondary/30 text-muted-foreground",
-                    client.id === me.client.id && "border-primary text-primary bg-primary/10",
+                    client.id === me.client.id &&
+                      "border-primary text-primary bg-primary/10",
                   )}
                 >
-                  {client.id === me.client.id ? "Ty jako widz" : client.name || "Widz"}
+                  {client.id === me.client.id
+                    ? "Ty jako widz"
+                    : client.name || "Widz"}
                 </span>
               ))}
             </div>
@@ -366,70 +371,81 @@ export default function RoomLobby() {
               Oglądasz ten pokój jako widz
             </p>
             <p className="text-sm text-muted-foreground">
-              Widzisz lobby i grę na żywo, ale nie możesz oznaczać gotowości ani wykonywać akcji gracza.
+              Widzisz lobby i grę na żywo, ale nie możesz oznaczać gotowości ani
+              wykonywać akcji gracza.
             </p>
           </Card>
         )}
 
         {!isSpectator && (
           <div className="grid md:grid-cols-2 gap-4">
-          <Card className="p-4 bg-card/70 border-border/70 space-y-3 flex flex-col justify-between">
-            <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground">
-              Twoja gotowość
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Kliknij jeśli jesteś gotowy. Gotowość wszystkich graczy jest wymagana do startu gry.
-            </p>
-            <Button
-              className="w-full"
-              variant={me.client.isReady ? "outline" : "default"}
-              onClick={handleToggleReady}
-              disabled={busy}
-            >
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              {me.client.isReady ? "Cofnij gotowość" : "Gotowy"}
-            </Button>
-          </Card>
-
-          {me.client.isHost && !isSpectator && (
-            <Card className="p-4 bg-card/70 border-border/70 space-y-3">
+            <Card className="p-4 bg-card/70 border-border/70 space-y-3 flex flex-col justify-between">
               <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground">
-                Start gry
+                Twoja gotowość
               </h2>
-
-              <div className="grid grid-cols-2 gap-2">
-                {[301, 501].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m as GameMode)}
-                    className={cn(
-                      "py-4 rounded-xl border-2 font-display text-2xl font-bold transition-all",
-                      mode === m
-                        ? "border-primary bg-primary/10 text-primary shadow-glow"
-                        : "border-border bg-secondary/40 text-muted-foreground",
-                    )}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-
+              <p className="text-sm text-muted-foreground">
+                Kliknij jeśli jesteś gotowy. Gotowość wszystkich graczy jest
+                wymagana do startu gry.
+              </p>
               <Button
-                className="w-full bg-gradient-primary"
-                onClick={handleStart}
-                disabled={busy || !allClientsReady}
+                className="w-full"
+                variant={me.client.isReady ? "outline" : "default"}
+                onClick={handleToggleReady}
+                disabled={busy}
+                aria-pressed={me.client.isReady}
               >
-                <Play className="w-4 h-4 mr-2" />
-                Start
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                {me.client.isReady ? "Cofnij gotowość" : "Gotowy"}
               </Button>
             </Card>
-          )}
-        </div>
+
+            {me.client.isHost && !isSpectator && (
+              <Card className="p-4 bg-card/70 border-border/70 space-y-3">
+                <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground">
+                  Start gry
+                </h2>
+
+                <div
+                  className="grid grid-cols-2 gap-2"
+                  role="group"
+                  aria-label="Wybierz tryb gry"
+                >
+                  {[301, 501].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      aria-pressed={mode === m}
+                      onClick={() => setMode(m as GameMode)}
+                      className={cn(
+                        "focus-ring py-4 rounded-xl border-2 font-display text-2xl font-bold transition-all",
+                        mode === m
+                          ? "border-primary bg-primary/10 text-primary-contrast shadow-glow"
+                          : "border-border bg-secondary/40 text-muted-foreground",
+                      )}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  className="w-full bg-gradient-primary"
+                  onClick={handleStart}
+                  disabled={busy || !allClientsReady}
+                >
+                  <Play className="w-4 h-4 mr-2" />
+                  Start
+                </Button>
+              </Card>
+            )}
+          </div>
         )}
 
         {actionError && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-contrast"
+          >
             {actionError}
           </div>
         )}

@@ -42,7 +42,7 @@ export function RegisterStepAccount({
         </div>
 
         {errors.email && (
-          <p id="email-error" className="mt-1 text-sm text-destructive">
+          <p id="email-error" className="mt-1 text-sm text-destructive-contrast">
             {errors.email.message}
           </p>
         )}
@@ -67,7 +67,7 @@ export function RegisterStepAccount({
         </div>
 
         {errors.password && (
-          <p id="password-error" className="mt-1 text-sm text-destructive">
+          <p id="password-error" className="mt-1 text-sm text-destructive-contrast">
             {errors.password.message}
           </p>
         )}
@@ -102,7 +102,7 @@ export function RegisterStepAccount({
         {errors.confirmPassword && (
           <p
             id="confirm-password-error"
-            className="mt-1 text-sm text-destructive"
+            className="mt-1 text-sm text-destructive-contrast"
           >
             {errors.confirmPassword.message}
           </p>

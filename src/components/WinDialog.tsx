@@ -127,7 +127,7 @@ export function WinDialog({
                             ? "bg-success/15 text-success"
                             : player.isHost
                               ? "bg-primary/15 text-primary"
-                              : "bg-destructive/15 text-destructive"
+                              : "bg-destructive/15 text-destructive-contrast"
                         }`}
                       >
                         {readyLabel}

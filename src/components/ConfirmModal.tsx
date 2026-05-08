@@ -33,23 +33,35 @@ export function ConfirmModal({
         onClick={onCancel}
       />
 
-      <div className="relative z-10 w-full max-w-md rounded-3xl border border-border bg-background p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="confirm-modal-title"
+        aria-describedby="confirm-modal-description"
+        className="relative z-10 w-full max-w-md rounded-3xl border border-border bg-background p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200"
+      >
         <div className="text-center">
           <div
             className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full ${
               danger
-                ? "bg-destructive/15 text-destructive"
+                ? "bg-destructive/15 text-destructive-contrast"
                 : "bg-primary/15 text-primary"
             }`}
           >
             <span className="text-3xl">!</span>
           </div>
 
-          <h2 className="font-display text-2xl font-bold">
+          <h2
+            id="confirm-modal-title"
+            className="font-display text-2xl font-bold"
+          >
             {title}
           </h2>
 
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          <p
+            id="confirm-modal-description"
+            className="mt-3 text-sm leading-relaxed text-muted-foreground"
+          >
             {description}
           </p>
 

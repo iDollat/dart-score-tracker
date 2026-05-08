@@ -126,7 +126,7 @@ export default function Register() {
       <RegisterProgress step={step} />
 
       {submitError && (
-        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-contrast">
           {submitError}
         </div>
       )}
@@ -192,7 +192,7 @@ export default function Register() {
 
       <p className="mt-5 text-center text-sm text-muted-foreground">
         Masz już konto?{" "}
-        <Link to="/login" className="font-semibold text-primary underline">
+        <Link to="/login" className="font-semibold text-primary-contrast underline underline-offset-2">
           Zaloguj się
         </Link>
       </p>

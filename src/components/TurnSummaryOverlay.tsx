@@ -52,7 +52,7 @@ export function TurnSummaryOverlay({ turn }: Props) {
 
         <h2
           className={`mt-3 font-display text-5xl font-black uppercase ${
-            displayedTurn.bust ? "text-destructive" : "text-primary"
+            displayedTurn.bust ? "text-destructive-contrast" : "text-primary"
           }`}
         >
           {displayedTurn.bust ? "BUST" : displayedTurn.playerName}

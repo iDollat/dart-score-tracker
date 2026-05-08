@@ -36,7 +36,7 @@ function getScoreMeta(score: number, isEmpty: boolean) {
       label: "Słabe hasło",
       widthClassName: "w-1/4",
       barClassName: "bg-destructive",
-      textClassName: "text-destructive",
+      textClassName: "text-destructive-contrast",
     };
   }
 

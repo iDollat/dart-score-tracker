@@ -23,11 +23,7 @@ function normalizeInitialNames(names: string[] | undefined) {
   });
 }
 
-export function GameSetup({
-  onStart,
-  initialMode = 501,
-  initialNames,
-}: Props) {
+export function GameSetup({ onStart, initialMode = 501, initialNames }: Props) {
   const [mode, setMode] = useState<GameMode>(initialMode);
   const [names, setNames] = useState<string[]>(
     normalizeInitialNames(initialNames),
@@ -78,19 +74,27 @@ export function GameSetup({
         </div>
 
         <section className="mb-6">
-          <h2 className="font-display uppercase text-sm tracking-wider text-muted-foreground mb-2">
+          <h2
+            id="game-mode-heading"
+            className="font-display uppercase text-sm tracking-wider text-muted-foreground mb-2"
+          >
             Tryb gry
           </h2>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div
+            className="grid grid-cols-2 gap-3"
+            role="group"
+            aria-labelledby="game-mode-heading"
+          >
             {[301, 501].map((m) => (
               <button
                 key={m}
                 type="button"
+                aria-pressed={mode === m}
                 onClick={() => setMode(m as GameMode)}
-                className={`py-6 rounded-xl border-2 font-display text-3xl font-bold transition-all ${
+                className={`focus-ring py-6 rounded-xl border-2 font-display text-3xl font-bold transition-all ${
                   mode === m
-                    ? "border-primary bg-primary/10 text-primary shadow-glow"
+                    ? "border-primary bg-primary/10 text-primary-contrast shadow-glow"
                     : "border-border bg-secondary/40 text-muted-foreground hover:border-primary/40"
                 }`}
               >
@@ -124,7 +128,12 @@ export function GameSetup({
                   {i + 1}
                 </div>
 
+                <label htmlFor={`player-name-${i}`} className="sr-only">
+                  Nazwa gracza {i + 1}
+                </label>
+
                 <Input
+                  id={`player-name-${i}`}
                   value={n}
                   onChange={(e) => updateName(i, e.target.value)}
                   maxLength={20}

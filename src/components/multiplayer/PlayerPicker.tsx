@@ -88,95 +88,122 @@ export function PlayerPicker({
       onChange([...selectedPlayerIds, created.id]);
       setNewPlayerName("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nie udało się dodać gracza");
+      setError(
+        err instanceof Error ? err.message : "Nie udało się dodać gracza",
+      );
     } finally {
       setCreating(false);
     }
   };
 
   return (
-    <Card className="p-5 bg-card/80 border-border/70 space-y-4">
-      <div>
-        <h2 className="font-display text-xl font-bold">Wybierz graczy</h2>
-        <p className="text-sm text-muted-foreground">
-          Możesz zaznaczyć kilku graczy.
-        </p>
-      </div>
-
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Ładowanie graczy...
+    <Card className="p-5 bg-card/80 border-border/70">
+      <section aria-labelledby="player-picker-heading" className="space-y-4">
+        <div>
+          <h2
+            id="player-picker-heading"
+            className="font-display text-xl font-bold"
+          >
+            Wybierz graczy
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Możesz zaznaczyć kilku graczy.
+          </p>
         </div>
-      )}
 
-      {error && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-
-      {!loading && visiblePlayers.length === 0 && (
-        <div className="rounded-xl border border-border bg-secondary/25 px-4 py-3 text-sm text-muted-foreground">
-          Brak dostępnych graczy do wyboru. Gracze, którzy są już w tym pokoju,
-          nie są pokazywani.
-        </div>
-      )}
-
-      <div className="grid sm:grid-cols-2 gap-2">
-        {visiblePlayers.map((player) => {
-          const selected = selectedPlayerIds.includes(player.id);
-
-          return (
-            <button
-              key={player.id}
-              type="button"
-              onClick={() => togglePlayer(player.id)}
-              className={cn(
-                "rounded-xl border px-4 py-3 text-left transition-all",
-                selected
-                  ? "border-primary bg-primary/10 text-primary shadow-glow"
-                  : "border-border bg-secondary/30 hover:bg-secondary/60",
-              )}
-            >
-              <div className="font-display font-bold">{player.name}</div>
-              <div className="text-xs text-muted-foreground">
-                {selected ? "Wybrany" : "Kliknij, aby wybrać"}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex gap-2">
-        <Input
-          value={newPlayerName}
-          onChange={(event) => setNewPlayerName(event.target.value)}
-          placeholder="Nowy gracz"
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              void handleCreatePlayer();
-            }
-          }}
-        />
-
-        <Button
-          onClick={handleCreatePlayer}
-          disabled={creating || !newPlayerName.trim()}
-        >
-          {creating ? (
+        {loading && (
+          <div
+            aria-live="polite"
+            className="flex items-center gap-2 text-sm text-muted-foreground"
+          >
             <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <UserPlus className="w-4 h-4" />
-          )}
+            Ładowanie graczy...
+          </div>
+        )}
 
-          <span className="hidden sm:inline ml-2">Dodaj</span>
+        {error && (
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-contrast"
+          >
+            {error}
+          </div>
+        )}
 
-          <span className="sm:hidden ml-2">
-            <Plus className="w-4 h-4" />
-          </span>
-        </Button>
-      </div>
+        {!loading && visiblePlayers.length === 0 && (
+          <div className="rounded-xl border border-border bg-secondary/25 px-4 py-3 text-sm text-muted-foreground">
+            Brak dostępnych graczy do wyboru. Gracze, którzy są już w tym
+            pokoju, nie są pokazywani.
+          </div>
+        )}
+
+        <div className="grid sm:grid-cols-2 gap-2">
+          {visiblePlayers.map((player) => {
+            const selected = selectedPlayerIds.includes(player.id);
+
+            return (
+              <button
+                key={player.id}
+                type="button"
+                aria-pressed={selected}
+                aria-label={
+                  selected
+                    ? `Odznacz gracza ${player.name}`
+                    : `Wybierz gracza ${player.name}`
+                }
+                onClick={() => togglePlayer(player.id)}
+                className={cn(
+                  "focus-ring rounded-xl border px-4 py-3 text-left transition-all",
+                  selected
+                    ? "border-primary bg-primary/10 text-primary-contrast shadow-glow"
+                    : "border-border bg-secondary/30 hover:bg-secondary/60",
+                )}
+              >
+                <div className="font-display font-bold">{player.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {selected ? "Wybrany" : "Kliknij, aby wybrać"}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-2">
+          <label htmlFor="new-player-name" className="sr-only">
+            Nazwa nowego gracza
+          </label>
+
+          <Input
+            id="new-player-name"
+            value={newPlayerName}
+            onChange={(event) => setNewPlayerName(event.target.value)}
+            placeholder="Nowy gracz"
+            aria-label="Nazwa nowego gracza"
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                void handleCreatePlayer();
+              }
+            }}
+          />
+
+          <Button
+            onClick={handleCreatePlayer}
+            disabled={creating || !newPlayerName.trim()}
+          >
+            {creating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <UserPlus className="w-4 h-4" />
+            )}
+
+            <span className="hidden sm:inline ml-2">Dodaj</span>
+
+            <span className="sm:hidden ml-2">
+              <Plus className="w-4 h-4" />
+            </span>
+          </Button>
+        </div>
+      </section>
     </Card>
   );
 }

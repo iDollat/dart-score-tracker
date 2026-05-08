@@ -438,7 +438,7 @@ export default function RoomGame() {
           <h1 className="font-display text-2xl font-bold">
             Gra nie jest jeszcze aktywna
           </h1>
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-destructive-contrast">
             {error || "Brak danych gry"}
           </p>
           <div className="flex justify-center gap-2">
@@ -506,7 +506,7 @@ export default function RoomGame() {
       )}
 
       {actionError && (
-        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-contrast">
           {actionError}
         </div>
       )}

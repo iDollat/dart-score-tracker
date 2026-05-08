@@ -298,7 +298,12 @@ export default function JoinRoom() {
             </p>
           </div>
 
+          <label htmlFor="room-code" className="sr-only">
+            Kod pokoju
+          </label>
+
           <Input
+            id="room-code"
             value={roomCode}
             onChange={(event) => {
               setRoomCode(
@@ -308,17 +313,28 @@ export default function JoinRoom() {
             placeholder="WPISZ TUTAJ KOD POKOJU"
             maxLength={8}
             className="bg-secondary/50 font-display text-2xl tracking-widest uppercase text-center h-14"
+            aria-invalid={Boolean(roomCheckError || error)}
+            aria-describedby={
+              roomCheckError
+                ? "room-code-check-error"
+                : error
+                  ? "join-room-error"
+                  : undefined
+            }
           />
 
           {checkingRoom && (
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <div
+              aria-live="polite"
+              className="flex items-center justify-center gap-2 text-sm text-muted-foreground"
+            >
               <Loader2 className="w-4 h-4 animate-spin" />
               Sprawdzanie pokoju...
             </div>
           )}
 
           {roomCheckError && canCheckRoom && (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-contrast">
               {roomCheckError}
             </div>
           )}
@@ -345,7 +361,11 @@ export default function JoinRoom() {
         )}
 
         {error && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          <div
+            id="join-room-error"
+            role="alert"
+            className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive-contrast"
+          >
             {error}
           </div>
         )}
