@@ -1,0 +1,118 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { LogIn } from "lucide-react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  loginSchema,
+  type LoginFormValues,
+} from "@/lib/validation/authSchemas";
+
+export function LoginForm() {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const {
+    register,
+    handleSubmit,
+    setError,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (values: LoginFormValues) => {
+    try {
+      setSubmitError(null);
+
+      await login(values);
+
+      navigate("/", { replace: true });
+    } catch (err) {
+      const apiError = err as Error & { fields?: Record<string, string> };
+
+      if (apiError.fields) {
+        Object.entries(apiError.fields).forEach(([name, message]) => {
+          setError(name as keyof LoginFormValues, {
+            type: "server",
+            message,
+          });
+        });
+      }
+
+      setSubmitError(apiError.message || "Nie udało się zalogować.");
+    }
+  };
+
+  return (
+    <>
+      {submitError && (
+        <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {submitError}
+        </div>
+      )}
+
+      <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Email</label>
+
+          <Input
+            type="email"
+            autoComplete="email"
+            className="bg-secondary/50"
+            {...register("email")}
+          />
+
+          {errors.email && (
+            <p className="mt-1 text-sm text-destructive">
+              {errors.email.message}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium">Hasło</label>
+
+          <Input
+            type="password"
+            autoComplete="current-password"
+            className="bg-secondary/50"
+            {...register("password")}
+          />
+
+          {errors.password && (
+            <p className="mt-1 text-sm text-destructive">
+              {errors.password.message}
+            </p>
+          )}
+        </div>
+
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full bg-gradient-primary font-display text-lg"
+          disabled={isSubmitting}
+        >
+          <LogIn className="mr-2 h-5 w-5" />
+          Zaloguj
+        </Button>
+      </form>
+
+      <p className="mt-5 text-center text-sm text-muted-foreground">
+        Nie masz konta?{" "}
+        <Link to="/register" className="font-semibold text-primary underline">
+          Zarejestruj się
+        </Link>
+      </p>
+    </>
+  );
+}
