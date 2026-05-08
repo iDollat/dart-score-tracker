@@ -38,7 +38,7 @@ export function TurnControls({ currentDarts, onUndo, onFinishTurn, onManualAdd, 
           Bieżąca tura
         </span>
         <span className="font-display text-sm">
-          Suma: <span className="text-primary font-bold">{currentDarts.reduce((s, d) => s + d.score, 0)}</span>
+          Suma: <span className="text-accent font-bold">{currentDarts.reduce((s, d) => s + d.score, 0)}</span>
         </span>
       </div>
 
@@ -49,7 +49,7 @@ export function TurnControls({ currentDarts, onUndo, onFinishTurn, onManualAdd, 
             <div
               key={i}
               className={`h-14 rounded-lg border-2 flex items-center justify-center font-display text-lg ${
-                d ? "border-primary bg-primary/10 text-primary" : "border-dashed border-border text-muted-foreground"
+                d ? "border-accent bg-accent/10 text-accent" : "border-dashed border-border text-muted-foreground"
               }`}
             >
               {d ? d.label : `Rzut ${i + 1}`}
@@ -63,13 +63,14 @@ export function TurnControls({ currentDarts, onUndo, onFinishTurn, onManualAdd, 
           <Input
             inputMode="numeric"
             placeholder="Punkty ręcznie (0-60)"
+            aria-label="Wpisz punkty ręcznie"
             value={manual}
             onChange={(e) => setManual(e.target.value.replace(/\D/g, ""))}
             onKeyDown={(e) => e.key === "Enter" && submitManual()}
             disabled={disabled || currentDarts.length >= 3}
             className="bg-secondary/50"
           />
-          <Button onClick={submitManual} variant="secondary" disabled={disabled || currentDarts.length >= 3}>
+          <Button aria-label="Zapisz punkty" onClick={submitManual} variant="secondary" disabled={disabled || currentDarts.length >= 3}>
             <Pencil className="w-4 h-4" />
           </Button>
         </div>

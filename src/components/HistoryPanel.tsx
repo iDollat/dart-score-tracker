@@ -10,9 +10,9 @@ export function HistoryPanel({ history }: Props) {
   const reversed = [...history].reverse();
   return (
     <Card className="p-3 bg-card/60 border-border">
-      <h3 className="font-display uppercase text-xs tracking-wider text-muted-foreground mb-2">
+      <h2 className="font-display uppercase text-xs tracking-wider text-muted-foreground mb-2">
         Historia rzutów
-      </h3>
+      </h2>
       <ScrollArea className="h-48 lg:h-72 pr-2">
         {reversed.length === 0 && (
           <p className="text-sm text-muted-foreground py-6 text-center">Brak rzutów.</p>
@@ -35,7 +35,7 @@ export function HistoryPanel({ history }: Props) {
                 {t.bust ? (
                   <span className="font-display text-destructive">BUST</span>
                 ) : (
-                  <span className="font-display text-primary">−{t.totalScored}</span>
+                  <span className="font-display text-accent">−{t.totalScored}</span>
                 )}
                 <div className="text-xs text-muted-foreground">→ {t.endScore}</div>
               </div>

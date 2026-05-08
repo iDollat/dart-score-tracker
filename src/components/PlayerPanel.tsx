@@ -36,7 +36,7 @@ export function PlayerPanel({ players, currentIdx, winnerId, currentDarts }: Pro
                 {p.name}
               </span>
               {active && (
-                <span className="text-[10px] font-display uppercase text-primary">na tarczy</span>
+                <span className="text-[10px] font-display uppercase text-accent">na tarczy</span>
               )}
             </div>
             <div className="flex items-baseline gap-2 mt-1">
