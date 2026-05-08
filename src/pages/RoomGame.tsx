@@ -7,6 +7,7 @@ import {
   saveRoomDart,
   undoRoomAction,
   leaveRoom,
+  setRoomReady,
 } from "@/api/roomsApi";
 import { Dartboard } from "@/components/Dartboard";
 import { RoomHistoryPanel } from "@/components/multiplayer/RoomHistoryPanel";
@@ -88,6 +89,34 @@ export default function RoomGame() {
 
   const finished = room?.status === "FINISHED" || game?.status === "finished";
   const isHost = Boolean(me?.client.isHost) && !isSpectator;
+
+  const playerClients =
+    room?.clients?.filter((client) => client.role === "PLAYER") || [];
+
+  const rematchVotingClients = playerClients.filter(
+    (client) => client.id !== room?.hostClientId,
+  );
+
+  const readyForRematchCount = rematchVotingClients.filter(
+    (client) => client.isReady,
+  ).length;
+
+  const totalPlayerClients = rematchVotingClients.length;
+
+  const allPlayersReadyForRematch =
+    totalPlayerClients === 0 || readyForRematchCount === totalPlayerClients;
+
+  const meReadyForRematch = Boolean(me?.client.isReady);
+
+  const rematchPlayers = playerClients.map((client) => ({
+    id: client.id,
+    isHost: client.id === room?.hostClientId,
+    isReady: client.isReady,
+    name:
+      client.players?.map((roomPlayer) => roomPlayer.player.name).join(", ") ||
+      client.name ||
+      "Gracz",
+  }));
 
   const serverHits = game?.pendingDarts.map(pendingDartToHit) || [];
 
@@ -226,6 +255,26 @@ export default function RoomGame() {
     }
   };
 
+  const handleVoteRematch = async () => {
+    if (busy || isSpectator) return;
+
+    try {
+      setBusy(true);
+      setActionError(null);
+
+      await setRoomReady(roomCode, token, true);
+      await refetch("full");
+    } catch (err) {
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "Nie udało się zgłosić chęci rewanżu",
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleHit = (hit: DartHit) => {
     if (
       !game?.currentRoomPlayer?.id ||
@@ -306,6 +355,11 @@ export default function RoomGame() {
 
     if (!isHost) {
       setActionError("Tylko host może rozpocząć rewanż.");
+      return;
+    }
+
+    if (!allPlayersReadyForRematch) {
+      setActionError("Nie wszyscy gracze zgłosili chęć rewanżu.");
       return;
     }
 
@@ -493,10 +547,18 @@ export default function RoomGame() {
           open={finished}
           winnerName={winnerName}
           onRestart={handleRestart}
-          onQuit={handleCloseRoom}
+          onQuit={isHost ? handleCloseRoom : handleLeave}
+          onVoteRematch={handleVoteRematch}
           restartLabel="Rewanż"
-          quitLabel="Zakończ pokój"
+          quitLabel="Zakończ grę"
           disabled={busy}
+          mode="multiplayer"
+          isHost={isHost}
+          meReadyForRematch={meReadyForRematch}
+          readyForRematchCount={readyForRematchCount}
+          totalPlayerClients={totalPlayerClients}
+          allPlayersReadyForRematch={allPlayersReadyForRematch}
+          rematchPlayers={rematchPlayers}
         />
       )}
       <ConfirmModal
