@@ -96,13 +96,13 @@ npm -v
 Sklonuj repozytorium:
 
 ```bash
-git https://github.com/iDollat/dart-score-tracker.git
+git clone https://github.com/iDollat/dart-score-tracker.git
 ```
 
 Przejdź do folderu projektu:
 
 ```bash
-cd dart-score-tracker
+cd dartboard-architect
 ```
 
 Zainstaluj zależności:
