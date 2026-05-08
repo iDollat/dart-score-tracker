@@ -302,6 +302,99 @@ Projekt wykorzystuje:
 
 ---
 
+## Notatka UX
+
+### Grupa docelowa
+
+Aplikacja **Dart Score Tracker** jest przeznaczona dla osób grających w darta rekreacyjnie lub półamatorsko, które chcą szybko i wygodnie prowadzić punktację w trybach **301** i **501**. Głównymi użytkownikami są gracze korzystający z aplikacji podczas spotkań towarzyskich, domowych rozgrywek, treningów lub małych turniejów.
+
+Przykładowa persona użytkownika:
+
+**Michał, 27 lat** — gra w darta ze znajomymi kilka razy w miesiącu. Nie chce ręcznie liczyć punktów ani zapisywać wyników na kartce. Zależy mu na szybkim rozpoczęciu gry, czytelnym widoku aktualnego wyniku oraz prostym cofaniu błędnie wpisanego rzutu. Najczęściej korzysta z telefonu, który leży obok tarczy lub na stole.
+
+---
+
+### Kluczowe wybory UI/UX
+
+Interfejs aplikacji został zaprojektowany tak, aby wspierać szybkie prowadzenie rozgrywki bez rozpraszania użytkownika. Zastosowano ciemny, sportowy motyw wizualny, duże kontrastowe elementy oraz wyraźne przyciski akcji. Najważniejsze informacje, takie jak aktualny gracz, wynik, historia rzutów i kontrolki tury, są widoczne bez konieczności przechodzenia przez wiele ekranów.
+
+W aplikacji zastosowano podział na osobne widoki: ekran główny, konfigurację gry lokalnej, logowanie, rejestrację, tworzenie pokoju, dołączanie do pokoju, lobby oraz ekran gry. Dzięki temu użytkownik przechodzi przez proces krok po kroku i nie jest przeciążony zbyt dużą liczbą opcji naraz.
+
+W widoku gry lokalnej najważniejsze akcje, takie jak zakończenie tury, cofnięcie rzutu, restart gry czy rozpoczęcie nowej rozgrywki, są dostępne bezpośrednio z poziomu ekranu gry. Dodatkowo zastosowano komunikaty potwierdzające dla akcji destrukcyjnych, takich jak restart lub zakończenie gry, aby ograniczyć ryzyko przypadkowej utraty postępu.
+
+Aplikacja została zaprojektowana responsywnie. Na urządzeniach mobilnych elementy układają się pionowo, a na większych ekranach pojawia się podział na część główną oraz panel boczny z graczami i historią. Takie rozwiązanie pozwala wygodnie korzystać z aplikacji zarówno na telefonie, jak i na laptopie lub monitorze.
+
+---
+
+### Odniesienie do heurystyk Nielsena
+
+Projekt odnosi się do wybranych heurystyk użyteczności Jakoba Nielsena:
+
+**1. Widoczność statusu systemu**
+
+Aplikacja informuje użytkownika o aktualnym stanie gry, aktywnym graczu, wykonanych rzutach, historii tur oraz zwycięzcy. W trybie online widoczne są również statusy ładowania, błędy sieciowe, gotowość graczy i informacje o lobby.
+
+**2. Dopasowanie systemu do świata rzeczywistego**
+
+Aplikacja korzysta z pojęć znanych graczom w darta, takich jak tryby **301** i **501**, rzut, tura, gracz, wynik, historia oraz zwycięzca. Dzięki temu użytkownik nie musi uczyć się abstrakcyjnej terminologii.
+
+**3. Kontrola i wolność użytkownika**
+
+Użytkownik może cofnąć ostatnią akcję, zakończyć turę, zrestartować grę lub wrócić do konfiguracji. Akcje, które mogą spowodować utratę postępu, są zabezpieczone modalem potwierdzającym.
+
+**4. Spójność i standardy**
+
+W projekcie zastosowano powtarzalne komponenty UI, spójne style przycisków, kart, formularzy i komunikatów. Routing prowadzi użytkownika przez logiczne etapy korzystania z aplikacji.
+
+**5. Zapobieganie błędom**
+
+Formularze wykorzystują walidację po stronie klienta. Użytkownik otrzymuje czytelne komunikaty błędów, np. przy niepoprawnym logowaniu, rejestracji lub wpisywaniu kodu pokoju. Przyciski są blokowane w sytuacjach, gdy dana akcja nie powinna być jeszcze dostępna.
+
+**6. Rozpoznawanie zamiast przypominania**
+
+Najważniejsze opcje są widoczne w interfejsie, np. wybór trybu gry, lista graczy, aktualna punktacja i historia. Użytkownik nie musi pamiętać poprzednich działań, ponieważ aplikacja pokazuje je w kontekście.
+
+**7. Estetyka i minimalizm**
+
+Interfejs skupia się na elementach potrzebnych do prowadzenia rozgrywki. Ekrany są podzielone na sekcje, a mniej istotne informacje nie dominują nad aktualnym wynikiem i akcjami gracza.
+
+---
+
+### Zasady UCD
+
+Projekt uwzględnia podejście **User-Centered Design**, ponieważ decyzje interfejsowe wynikają z potrzeb użytkownika grającego w czasie rzeczywistym. Aplikacja ma umożliwiać szybkie rozpoczęcie gry, minimalizować liczbę kliknięć, ograniczać ryzyko pomyłek oraz zapewniać czytelną informację zwrotną.
+
+Najważniejsze potrzeby użytkownika to:
+
+- szybkie rozpoczęcie rozgrywki,
+- wygodne wpisywanie lub wybieranie trafień,
+- jasna informacja, kto aktualnie rzuca,
+- możliwość cofnięcia błędnej akcji,
+- czytelny wynik na telefonie i desktopie,
+- proste dołączanie do pokoju online,
+- widoczna informacja o błędach i stanie ładowania.
+
+Z tego powodu aplikacja wykorzystuje duże elementy interaktywne, responsywny układ, komunikaty błędów, loading spinnery, animacje przejść oraz potwierdzenia dla ważnych akcji.
+
+---
+
+### Obserwacje własne
+
+Podczas projektowania założono, że użytkownik często korzysta z aplikacji w dynamicznym kontekście — podczas gry, rozmowy ze znajomymi lub stojąc przy tarczy. Dlatego interfejs powinien być prosty, odporny na pomyłki i możliwy do obsługi na małym ekranie.
+
+Z tego względu szczególny nacisk położono na:
+
+- duże przyciski,
+- widoczne aktualne wyniki,
+- prostą konfigurację gry,
+- ograniczenie liczby kroków przed rozpoczęciem rozgrywki,
+- czytelne komunikaty błędów,
+- możliwość cofnięcia akcji,
+- potwierdzanie działań destrukcyjnych,
+- responsywny układ dla telefonu i desktopu.
+
+Dzięki tym decyzjom aplikacja lepiej odpowiada na realne warunki użycia i może być wygodnie wykorzystywana podczas szybkich rozgrywek lokalnych oraz online.
+
 ## Autor
 
 **`Kamil Szczebak`**
