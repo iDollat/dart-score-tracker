@@ -28,8 +28,8 @@ import {
 import type { DartHit } from "@/lib/dartboard";
 import type { TurnRecord } from "@/lib/gameLogic";
 
-const TURN_DARTS_PAUSE_MS = 2000;
-const TURN_SUMMARY_MS = 3800;
+const TURN_DARTS_PAUSE_MS = 1000;
+const TURN_SUMMARY_MS = 3000;
 
 export default function RoomGame() {
   const { code = "" } = useParams();
@@ -56,6 +56,7 @@ export default function RoomGame() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [savingDartsCount, setSavingDartsCount] = useState(0);
   const [optimisticHits, setOptimisticHits] = useState<DartHit[]>([]);
   const [confirmLeaveOpen, setConfirmLeaveOpen] = useState(false);
   const [turnSummary, setTurnSummary] = useState<TurnRecord | null>(null);
@@ -66,6 +67,7 @@ export default function RoomGame() {
   const lastShownTurnIdRef = useRef<string | null>(null);
   const initializedHistoryRef = useRef(false);
   const transitionTimersRef = useRef<number[]>([]);
+  const dartSaveQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const game = room?.game || null;
 
@@ -77,10 +79,12 @@ export default function RoomGame() {
   const currentRoomPlayerId = game?.currentRoomPlayer?.id;
   const isSpectator = me?.client.role === "SPECTATOR";
 
-  const isMyTurn = !isSpectator && Boolean(
-    currentRoomPlayerId &&
-    controlledRoomPlayerIds.includes(currentRoomPlayerId),
-  );
+  const isMyTurn =
+    !isSpectator &&
+    Boolean(
+      currentRoomPlayerId &&
+      controlledRoomPlayerIds.includes(currentRoomPlayerId),
+    );
 
   const finished = room?.status === "FINISHED" || game?.status === "finished";
   const isHost = Boolean(me?.client.isHost) && !isSpectator;
@@ -93,10 +97,19 @@ export default function RoomGame() {
       ? [...serverHits, ...optimisticHits].slice(0, 3)
       : serverHits;
 
+  const turnTransitionActive = Boolean(turnTransition);
+
+  const visibleHitsCount = recentHits.length;
+
+  const dartboardDisabled =
+    isSpectator ||
+    !isMyTurn ||
+    finished ||
+    turnTransitionActive ||
+    visibleHitsCount >= 3;
+
   const currentPlayerName =
     turnTransition?.playerName || game?.currentRoomPlayer?.player?.name || "—";
-
-  const turnTransitionActive = Boolean(turnTransition);
 
   const winnerName = game?.scores.find(
     (score) =>
@@ -117,17 +130,23 @@ export default function RoomGame() {
   useEffect(() => {
     const turns = history?.turns || [];
 
+    if (!initializedHistoryRef.current) {
+      initializedHistoryRef.current = true;
+
+      if (turns.length > 0) {
+        const lastTurn = turns[turns.length - 1];
+        lastShownTurnIdRef.current = lastTurn.id;
+      }
+
+      return;
+    }
+
     if (turns.length === 0) {
+      lastShownTurnIdRef.current = null;
       return;
     }
 
     const lastTurn = turns[turns.length - 1];
-
-    if (!initializedHistoryRef.current) {
-      initializedHistoryRef.current = true;
-      lastShownTurnIdRef.current = lastTurn.id;
-      return;
-    }
 
     if (lastShownTurnIdRef.current === lastTurn.id) {
       return;
@@ -206,44 +225,61 @@ export default function RoomGame() {
     }
   };
 
-  const handleHit = async (hit: DartHit) => {
+  const handleHit = (hit: DartHit) => {
     if (
       !game?.currentRoomPlayer?.id ||
       isSpectator ||
       !isMyTurn ||
       finished ||
-      busy ||
-      turnTransitionActive
+      turnTransitionActive ||
+      recentHits.length >= 3
     ) {
       return;
     }
 
-    try {
-      setBusy(true);
-      setActionError(null);
+    const roomPlayerId = game.currentRoomPlayer.id;
 
-      setOptimisticHits((prev) => [...prev, hit].slice(0, 3));
+    setActionError(null);
 
-      const response = await saveRoomDart(
-        roomCode,
-        token,
-        hitToRoomDart(game.currentRoomPlayer.id, hit),
-      );
+    // UI od razu pokazuje rzut.
+    setOptimisticHits((prev) => [...prev, hit].slice(0, 3));
 
-      if (response.turnCompleted && response.turn) {
-        lastShownTurnIdRef.current = response.turn.id;
-        startTurnTransition(response.turn);
-      } else {
-        setOptimisticHits([]);
-      }
-    } catch (err) {
-      setOptimisticHits([]);
-      setActionError(
-        err instanceof Error ? err.message : "Nie udało się zapisać rzutu",
-      );
-    } finally {
-      setBusy(false);
-    }
+    setSavingDartsCount((count) => count + 1);
+
+    // Backend zapisuje rzuty sekwencyjnie, w kolejności kliknięć.
+    dartSaveQueueRef.current = dartSaveQueueRef.current
+      .catch(() => {
+        // Poprzedni błąd nie może zatrzymać całej kolejki.
+      })
+      .then(async () => {
+        const response = await saveRoomDart(
+          roomCode,
+          token,
+          hitToRoomDart(roomPlayerId, hit),
+        );
+
+        if (response.turnCompleted && response.turn) {
+          lastShownTurnIdRef.current = response.turn.id;
+          startTurnTransition(response.turn);
+          return;
+        }
+
+        void refetch("full");
+      })
+      .catch((err) => {
+        setOptimisticHits((prev) => {
+          const next = [...prev];
+          next.pop();
+          return next;
+        });
+
+        setActionError(
+          err instanceof Error ? err.message : "Nie udało się zapisać rzutu",
+        );
+      })
+      .finally(() => {
+        setSavingDartsCount((count) => Math.max(0, count - 1));
+      });
   };
 
   const handleUndo = async () => {
@@ -371,16 +407,6 @@ export default function RoomGame() {
             Pokój <span className="text-primary">{room.code}</span> ·{" "}
             {game.mode}
           </h1>
-
-          <p className="text-xs text-muted-foreground">
-            {finished
-              ? "Gra zakończona"
-              : isSpectator
-                ? `Oglądasz jako widz · teraz rzuca: ${currentPlayerName}`
-                : isMyTurn
-                  ? "Twoja kolej"
-                  : `Teraz rzuca: ${currentPlayerName}`}
-          </p>
         </div>
 
         <div className="flex gap-2">
@@ -424,20 +450,6 @@ export default function RoomGame() {
         </Card>
       )}
 
-      {turnTransition && (
-        <Card className="mb-4 p-3 border-primary/30 bg-primary/10 text-center font-display text-primary">
-          {turnTransition.phase === "pause"
-            ? `Rzuty gracza: ${turnTransition.playerName}`
-            : `Podsumowanie tury: ${turnTransition.playerName}`}
-        </Card>
-      )}
-
-      {!finished && !turnTransition && !isMyTurn && (
-        <Card className="mb-4 p-3 border-primary/30 bg-primary/10 text-center font-display text-primary">
-          Teraz rzuca: {currentPlayerName}
-        </Card>
-      )}
-
       {actionError && (
         <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {actionError}
@@ -453,7 +465,7 @@ export default function RoomGame() {
           <Dartboard
             onHit={handleHit}
             recentHits={recentHits}
-            disabled={isSpectator || !isMyTurn || finished || busy || turnTransitionActive}
+            disabled={dartboardDisabled}
           />
 
           <RoomTurnControls
