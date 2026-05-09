@@ -150,7 +150,8 @@ const Index = () => {
 
               <div>
                 <h1 className="font-display text-xl font-bold leading-none">
-                  DART<span className="text-primary-contrast">{state.mode}</span>
+                  DART
+                  <span className="text-primary-contrast">{state.mode}</span>
                 </h1>
                 <p className="text-xs text-muted-foreground">
                   {state.players.length} graczy
@@ -197,6 +198,7 @@ const Index = () => {
 
               <Dartboard
                 onHit={addDart}
+                onUndo={undo}
                 recentHits={state.currentDarts}
                 disabled={!!state.winnerId}
               />

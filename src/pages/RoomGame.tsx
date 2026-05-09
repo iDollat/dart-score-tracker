@@ -30,7 +30,7 @@ import type { DartHit } from "@/lib/dartboard";
 import type { TurnRecord } from "@/lib/gameLogic";
 
 const TURN_DARTS_PAUSE_MS = 1000;
-const TURN_SUMMARY_MS = 3000;
+const TURN_SUMMARY_MS = 2000;
 
 export default function RoomGame() {
   const { code = "" } = useParams();
@@ -56,6 +56,7 @@ export default function RoomGame() {
   };
 
   const [actionError, setActionError] = useState<string | null>(null);
+  const [lastUndoLabel, setLastUndoLabel] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [savingDartsCount, setSavingDartsCount] = useState(0);
   const [optimisticHits, setOptimisticHits] = useState<DartHit[]>([]);
@@ -144,6 +145,59 @@ export default function RoomGame() {
     (score) =>
       score.playerId === game.winnerPlayerId || score.finalPosition === 1,
   )?.name;
+
+  const currentTurnScore = recentHits.reduce((sum, hit) => sum + hit.score, 0);
+
+const previewRemainingScore = (() => {
+  if (!game?.currentRoomPlayer || currentTurnScore <= 0) {
+    return null;
+  }
+
+  const currentPlayerScore = game.scores.find(
+    (score) => score.playerId === game.currentRoomPlayer?.playerId,
+  );
+
+  if (!currentPlayerScore) {
+    return null;
+  }
+
+  return currentPlayerScore.currentScore - currentTurnScore;
+})();
+
+const isPreviewBust =
+  previewRemainingScore !== null &&
+  (previewRemainingScore < 0 || previewRemainingScore === 1);
+
+const scorePreviewGame = useMemo(() => {
+  if (!game || !game.currentRoomPlayer || currentTurnScore <= 0) {
+    return game;
+  }
+
+  return {
+    ...game,
+    scores: game.scores.map((score) => {
+      if (score.playerId !== game.currentRoomPlayer?.playerId) {
+        return score;
+      }
+
+      const nextScore = score.currentScore - currentTurnScore;
+
+      return {
+        ...score,
+
+        /*
+          Frontendowy podgląd:
+          - normalny rzut pokazuje wynik po odjęciu,
+          - BUST zostawia wynik bez zmian.
+          
+          Backend nadal powinien mieć właściwą logikę BUST jako źródło prawdy.
+        */
+        currentScore:
+          nextScore < 0 || nextScore === 1 ? score.currentScore : nextScore,
+      };
+    }),
+  };
+}, [game, currentTurnScore]);
 
   useEffect(() => {
     if (!closed) return;
@@ -290,6 +344,8 @@ export default function RoomGame() {
     const roomPlayerId = game.currentRoomPlayer.id;
 
     setActionError(null);
+    setLastUndoLabel(null);
+    setTurnSummary(null);
 
     // UI od razu pokazuje rzut.
     setOptimisticHits((prev) => [...prev, hit].slice(0, 3));
@@ -332,14 +388,50 @@ export default function RoomGame() {
       });
   };
 
+  const getLastUndoLabel = () => {
+    const optimisticLastHit = optimisticHits.at(-1);
+
+    if (optimisticLastHit?.label) {
+      return optimisticLastHit.label;
+    }
+
+    const serverLastHit = serverHits.at(-1);
+
+    if (serverLastHit?.label) {
+      return serverLastHit.label;
+    }
+
+    const lastTurn = history?.turns.at(-1);
+    const lastTurnDart = lastTurn?.darts.at(-1);
+
+    if (lastTurnDart) {
+      return roomTurnDartToHit(lastTurnDart).label;
+    }
+
+    return null;
+  };
+
   const handleUndo = async () => {
     if (busy || finished || isSpectator) return;
+
+    const undoLabel = getLastUndoLabel();
 
     try {
       setBusy(true);
       setActionError(null);
 
       await undoRoomAction(roomCode, token);
+
+      setLastUndoLabel(undoLabel);
+
+      setOptimisticHits((prev) => {
+        if (prev.length === 0) return prev;
+
+        const next = [...prev];
+        next.pop();
+        return next;
+      });
+
       await refetch("history-only");
     } catch (err) {
       setActionError(
@@ -368,6 +460,7 @@ export default function RoomGame() {
       setActionError(null);
       setTurnSummary(null);
       setOptimisticHits([]);
+      setLastUndoLabel(null);
 
       await restartRoomGame(roomCode, token, game.mode);
 
@@ -514,12 +607,13 @@ export default function RoomGame() {
       <div className="grid lg:grid-cols-[minmax(0,1fr)_320px] gap-4 [@media(min-width:1024px)_and_(min-height:1200px)]:min-h-0 [@media(min-width:1024px)_and_(min-height:1200px)]:flex-1">
         <section className="relative overflow-visible space-y-4 [@media(min-width:1024px)_and_(min-height:1200px)]:min-h-0 [@media(min-width:1024px)_and_(min-height:1200px)]:flex [@media(min-width:1024px)_and_(min-height:1200px)]:flex-col">
           <div className="relative z-10 lg:hidden">
-            <RoomScorePanel game={game} />
+            <RoomScorePanel game={scorePreviewGame || game} />
           </div>
 
           <div className="[@media(min-width:1024px)_and_(min-height:1200px)]:min-h-0 [@media(min-width:1024px)_and_(min-height:1200px)]:flex-1 [@media(min-width:1024px)_and_(min-height:1200px)]:flex [@media(min-width:1024px)_and_(min-height:1200px)]:items-center [@media(min-width:1024px)_and_(min-height:1200px)]:justify-center">
             <Dartboard
               onHit={handleHit}
+              onUndo={handleUndo}
               recentHits={recentHits}
               disabled={dartboardDisabled}
             />
@@ -531,11 +625,17 @@ export default function RoomGame() {
             disabled={isSpectator || busy || finished}
             canUndo={!isSpectator && (isMyTurn || recentHits.length === 0)}
           />
+
+          {lastUndoLabel && (
+            <div className="rounded-xl border border-accent/40 bg-accent/10 px-4 py-3 text-center font-display text-sm font-bold text-accent">
+              Cofnięto: {lastUndoLabel}
+            </div>
+          )}
         </section>
 
         <aside className="space-y-4 [@media(min-width:1024px)_and_(min-height:1200px)]:min-h-0 [@media(min-width:1024px)_and_(min-height:1200px)]:overflow-hidden">
           <div className="hidden lg:block">
-            <RoomScorePanel game={game} />
+            <RoomScorePanel game={scorePreviewGame || game} />
           </div>
 
           <RoomHistoryPanel turns={history?.turns || []} />

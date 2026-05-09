@@ -3,6 +3,7 @@ import { computeHit, R, SECTORS, type DartHit } from "@/lib/dartboard";
 
 interface Props {
   onHit: (hit: DartHit) => void;
+  onUndo?: () => void;
   recentHits: DartHit[]; // bieżącej tury
   disabled?: boolean;
 }
@@ -35,7 +36,7 @@ const LONG_PRESS_MS = 350;
 const VIEWBOX_WIDTH = 400;
 const VIEWBOX_HEIGHT = 430;
 
-export function Dartboard({ onHit, recentHits, disabled }: Props) {
+export function Dartboard({ onHit, onUndo, recentHits, disabled }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -149,6 +150,16 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   const handlePointerDown = (e: React.PointerEvent) => {
     if (disabled) return;
 
+    /*
+    Prawy przycisk myszy:
+    - nie dodaje trafienia,
+    - cofanie obsłuży handleContextMenu.
+  */
+    if (e.pointerType === "mouse" && e.button === 2) {
+      e.preventDefault();
+      return;
+    }
+
     const pt = toSvgCoords(e.clientX, e.clientY);
 
     /*
@@ -194,6 +205,14 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         source: "long-press",
       });
     }, LONG_PRESS_MS);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (disabled) return;
+
+    onUndo?.();
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -421,6 +440,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         ref={svgRef}
         viewBox="0 0 400 430"
         className="w-full h-auto block"
+        onContextMenu={handleContextMenu}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
@@ -815,20 +835,20 @@ function BoardClone({ recentHits }: { recentHits: DartHit[] }) {
       />
 
       {sectorNumbers.map((n) => (
-            <text
-              key={n.key}
-              x={n.x}
-              y={n.y}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fontSize="14"
-              fontWeight="700"
-              fontFamily="Oswald, Inter, sans-serif"
-              fill="hsl(var(--board-black))"
-            >
-              {n.sector}
-            </text>
-          ))}
+        <text
+          key={n.key}
+          x={n.x}
+          y={n.y}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize="14"
+          fontWeight="700"
+          fontFamily="Oswald, Inter, sans-serif"
+          fill="hsl(var(--board-black))"
+        >
+          {n.sector}
+        </text>
+      ))}
 
       {recentHits.map((h, i) => (
         <g key={`lens-hit-${i}`}>
