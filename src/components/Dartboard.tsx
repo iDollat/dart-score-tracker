@@ -20,18 +20,25 @@ function annulusSegment(
     const rad = ((a - 90) * Math.PI) / 180;
     return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)] as const;
   };
+
   const [x1o, y1o] = toXY(r2, a1);
   const [x2o, y2o] = toXY(r2, a2);
   const [x1i, y1i] = toXY(r1, a1);
   const [x2i, y2i] = toXY(r1, a2);
   const large = a2 - a1 > 180 ? 1 : 0;
+
   return `M ${x1o} ${y1o} A ${r2} ${r2} 0 ${large} 1 ${x2o} ${y2o} L ${x2i} ${y2i} A ${r1} ${r1} 0 ${large} 0 ${x1i} ${y1i} Z`;
 }
 
 const LONG_PRESS_MS = 350;
 
+const VIEWBOX_WIDTH = 400;
+const VIEWBOX_HEIGHT = 430;
+
 export function Dartboard({ onHit, recentHits, disabled }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const [aim, setAim] = useState<{
     x: number;
     y: number;
@@ -39,6 +46,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     clientY: number;
     useLensTarget: boolean;
   } | null>(null);
+
   const longPressTimer = useRef<number | null>(null);
   const pressActive = useRef(false);
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
@@ -49,10 +57,16 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   // Konwersja współrzędnych klienta -> viewBox (0..400)
   const toSvgCoords = (clientX: number, clientY: number) => {
     const svg = svgRef.current;
-    if (!svg) return { x: 200, y: 200 };
+
+    if (!svg) {
+      return { x: 200, y: 200 };
+    }
+
     const rect = svg.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * 400;
-    const y = ((clientY - rect.top) / rect.height) * 400;
+
+    const x = ((clientX - rect.left) / rect.width) * VIEWBOX_WIDTH;
+    const y = ((clientY - rect.top) / rect.height) * VIEWBOX_HEIGHT;
+
     return { x, y };
   };
 
@@ -62,18 +76,39 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
 
   const getLensTargetCoords = (clientX: number, clientY: number) => {
     const lensR = 60;
-    const lensSize = lensR * 2;
     const padding = 8;
     const lensOffsetY = 115;
 
-    const left = clientX - lensR;
+    const container = containerRef.current;
+    const containerRect = container?.getBoundingClientRect();
 
-    const preferredTop = clientY - lensOffsetY - lensR;
-    const maxTop = window.innerHeight - lensSize - padding;
-    const top = Math.max(padding, Math.min(maxTop, preferredTop));
+    const relativeClientX = containerRect
+      ? clientX - containerRect.left
+      : clientX;
+    const relativeClientY = containerRect
+      ? clientY - containerRect.top
+      : clientY;
 
-    const lensCenterClientX = left + lensR;
-    const lensCenterClientY = top + lensR;
+    const preferredLeft = relativeClientX - lensR;
+    const preferredTop = relativeClientY - lensOffsetY - lensR;
+
+    /*
+    Lupa może wyjechać poza kontener tarczy.
+    Ograniczamy tylko jej górną krawędź względem viewportu.
+  */
+    const top = containerRect
+      ? Math.max(padding - containerRect.top, preferredTop)
+      : Math.max(padding, preferredTop);
+
+    const left = preferredLeft;
+
+    const lensCenterClientX = containerRect
+      ? containerRect.left + left + lensR
+      : left + lensR;
+
+    const lensCenterClientY = containerRect
+      ? containerRect.top + top + lensR
+      : top + lensR;
 
     return toSvgCoords(lensCenterClientX, lensCenterClientY);
   };
@@ -129,6 +164,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
       }
 
       lockPageScroll();
+
       setAim({
         ...pt,
         clientX: e.clientX,
@@ -146,12 +182,14 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     // PO long pressie: celujemy i blokujemy scroll
     if (aimActive.current) {
       e.preventDefault();
+
       setAim({
         ...pt,
         clientX: e.clientX,
         clientY: e.clientY,
         useLensTarget: isMobilePointer(e),
       });
+
       return;
     }
 
@@ -166,7 +204,6 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         cancelLongPress();
         pressActive.current = false;
         aimActive.current = false;
-        return;
       }
     }
   };
@@ -197,6 +234,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
       pressActive.current = false;
       aimActive.current = false;
       unlockPageScroll();
+
       return;
     }
 
@@ -243,6 +281,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   // Statyczne sektory (memo)
   const sectorPaths = useMemo(() => {
     const items: { d: string; fill: string; key: string }[] = [];
+
     SECTORS.forEach((sector, i) => {
       // Każdy sektor zajmuje 18°. Sektor w indeksie i wyśrodkowany w (i*18)°
       const a1 = i * 18 - 9;
@@ -257,12 +296,14 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
           ? "hsl(var(--board-cream))"
           : "hsl(var(--board-black))",
       });
+
       // Triple
       items.push({
         key: `t-${i}`,
         d: annulusSegment(200, 200, R.tripleInner, R.tripleOuter, a1, a2),
         fill: evenSector ? "hsl(var(--board-red))" : "hsl(var(--board-green))",
       });
+
       // Single górny
       items.push({
         key: `s2-${i}`,
@@ -271,6 +312,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
           ? "hsl(var(--board-cream))"
           : "hsl(var(--board-black))",
       });
+
       // Double
       items.push({
         key: `d-${i}`,
@@ -278,6 +320,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         fill: evenSector ? "hsl(var(--board-red))" : "hsl(var(--board-green))",
       });
     });
+
     return items;
   }, []);
 
@@ -288,12 +331,16 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
       const r = R.doubleOuter + 14;
       const x = 200 + r * Math.cos(rad);
       const y = 200 + r * Math.sin(rad);
+
       return { sector, x, y, key: `n-${i}` };
     });
   }, []);
 
   return (
-    <div className="relative z-50 w-full max-w-[520px] [@media(min-width:1024px)_and_(min-height:1200px)]:max-w-[min(520px,calc(100vh-220px))] mx-auto select-none no-touch-callout overflow-visible">
+    <div
+      ref={containerRef}
+      className="relative z-50 w-full max-w-[520px] [@media(min-width:1024px)_and_(min-height:1200px)]:max-w-[min(520px,calc(100vh-220px))] mx-auto select-none no-touch-callout overflow-visible"
+    >
       <svg
         ref={svgRef}
         viewBox="0 0 400 430"
@@ -392,21 +439,6 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
               />
             </g>
           ))}
-
-          {/* Etykieta trybu precyzyjnego */}
-          {aim && (
-            <text
-              x="200"
-              y="420"
-              textAnchor="middle"
-              fontSize="14"
-              fontFamily="Oswald, Inter, sans-serif"
-              fill="hsl(var(--accent))"
-              fontWeight="700"
-            >
-              CELOWANIE — puść aby trafić
-            </text>
-          )}
         </g>
 
         {/*
@@ -418,6 +450,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         */}
         <rect x="0" y="0" width="400" height="430" fill="transparent" />
       </svg>
+
       {aim && (
         <ZoomLens
           cx={aim.x}
@@ -425,6 +458,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
           clientX={aim.clientX}
           clientY={aim.clientY}
           svgRef={svgRef}
+          containerRef={containerRef}
           useLensTarget={aim.useLensTarget}
         />
       )}
@@ -438,6 +472,7 @@ function ZoomLens({
   clientX,
   clientY,
   svgRef,
+  containerRef,
   useLensTarget,
 }: {
   cx: number;
@@ -445,19 +480,40 @@ function ZoomLens({
   clientX: number;
   clientY: number;
   svgRef: React.RefObject<SVGSVGElement>;
+  containerRef: React.RefObject<HTMLDivElement>;
   useLensTarget: boolean;
 }) {
   const lensR = 60;
   const lensSize = lensR * 2;
   const padding = 8;
-  const lensOffsetY = 115;
-  const zoom = 3;
 
-  const left = clientX - lensR;
+  const container = containerRef.current;
+  const containerRect = container?.getBoundingClientRect();
 
-  const preferredTop = clientY - lensOffsetY - lensR;
-  const maxTop = window.innerHeight - lensSize - padding;
-  const top = Math.max(padding, Math.min(maxTop, preferredTop));
+  const isTouchLens = useLensTarget;
+
+  const relativeClientX = containerRect
+    ? clientX - containerRect.left
+    : clientX;
+  const relativeClientY = containerRect ? clientY - containerRect.top : clientY;
+
+  const preferredLeft = relativeClientX - lensR;
+  const preferredTop = isTouchLens
+    ? relativeClientY - 115 - lensR
+    : relativeClientY - lensR;
+
+  /*
+  Lupa może wyjechać poza krawędzie kontenera Dartboard,
+  więc NIE ograniczamy left/right/bottom do rozmiaru kontenera.
+
+  Ograniczamy tylko górną krawędź względem viewportu,
+  żeby lupa nie uciekła poza górę ekranu.
+*/
+  const left = preferredLeft;
+
+  const top = containerRect
+    ? Math.max(padding - containerRect.top, preferredTop)
+    : Math.max(padding, preferredTop);
 
   const lensCx = lensR;
   const lensCy = lensR;
@@ -465,24 +521,31 @@ function ZoomLens({
   const svg = svgRef.current;
   const rect = svg?.getBoundingClientRect();
 
-  const lensCenterClientX = left + lensR;
-  const lensCenterClientY = top + lensR;
+  const zoom = ( rect ? rect.width / VIEWBOX_WIDTH : 1 ) * 1.25;
+
+  const lensCenterClientX = containerRect
+    ? containerRect.left + left + lensR
+    : left + lensR;
+
+  const lensCenterClientY = containerRect
+    ? containerRect.top + top + lensR
+    : top + lensR;
 
   const lensTargetX =
     useLensTarget && rect
-      ? ((lensCenterClientX - rect.left) / rect.width) * 400
+      ? ((lensCenterClientX - rect.left) / rect.width) * VIEWBOX_WIDTH
       : cx;
 
   const lensTargetY =
     useLensTarget && rect
-      ? ((lensCenterClientY - rect.top) / rect.height) * 400
+      ? ((lensCenterClientY - rect.top) / rect.height) * VIEWBOX_HEIGHT
       : cy;
 
   const label = computeHit(lensTargetX, lensTargetY).label || "MISS";
 
   return (
     <div
-      className="pointer-events-none fixed z-[9999]"
+      className="pointer-events-none absolute z-[9999]"
       style={{
         left,
         top,
@@ -580,10 +643,12 @@ function ZoomLens({
 function BoardClone() {
   const sectorPaths = useMemo(() => {
     const items: { d: string; fill: string; key: string }[] = [];
+
     SECTORS.forEach((_, i) => {
       const a1 = i * 18 - 9;
       const a2 = i * 18 + 9;
       const evenSector = i % 2 === 0;
+
       items.push({
         key: `s1-${i}`,
         d: annulusSegment(200, 200, R.bull, R.tripleInner, a1, a2),
@@ -591,11 +656,13 @@ function BoardClone() {
           ? "hsl(var(--board-cream))"
           : "hsl(var(--board-black))",
       });
+
       items.push({
         key: `t-${i}`,
         d: annulusSegment(200, 200, R.tripleInner, R.tripleOuter, a1, a2),
         fill: evenSector ? "hsl(var(--board-red))" : "hsl(var(--board-green))",
       });
+
       items.push({
         key: `s2-${i}`,
         d: annulusSegment(200, 200, R.tripleOuter, R.doubleInner, a1, a2),
@@ -603,22 +670,49 @@ function BoardClone() {
           ? "hsl(var(--board-cream))"
           : "hsl(var(--board-black))",
       });
+
       items.push({
         key: `d-${i}`,
         d: annulusSegment(200, 200, R.doubleInner, R.doubleOuter, a1, a2),
         fill: evenSector ? "hsl(var(--board-red))" : "hsl(var(--board-green))",
       });
     });
+
     return items;
   }, []);
+
   return (
     <>
+      <circle cx="200" cy="200" r="210" fill="hsl(var(--board-black))" />
       <circle cx="200" cy="200" r="200" fill="hsl(var(--board-wire))" />
+
       {sectorPaths.map((s) => (
-        <path key={s.key} d={s.d} fill={s.fill} />
+        <path
+          key={s.key}
+          d={s.d}
+          fill={s.fill}
+          stroke="hsl(var(--board-wire))"
+          strokeWidth="0.5"
+        />
       ))}
-      <circle cx="200" cy="200" r={R.bull} fill="hsl(var(--board-green))" />
-      <circle cx="200" cy="200" r={R.bullseye} fill="hsl(var(--board-red))" />
+
+      <circle
+        cx="200"
+        cy="200"
+        r={R.bull}
+        fill="hsl(var(--board-green))"
+        stroke="hsl(var(--board-wire))"
+        strokeWidth="0.6"
+      />
+
+      <circle
+        cx="200"
+        cy="200"
+        r={R.bullseye}
+        fill="hsl(var(--board-red))"
+        stroke="hsl(var(--board-wire))"
+        strokeWidth="0.6"
+      />
     </>
   );
 }
