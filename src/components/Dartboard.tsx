@@ -45,6 +45,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     clientX: number;
     clientY: number;
     useLensTarget: boolean;
+    source: "hover" | "long-press";
   } | null>(null);
 
   const longPressTimer = useRef<number | null>(null);
@@ -52,6 +53,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const movedAfterPress = useRef(false);
   const aimActive = useRef(false);
+  const hoverAimActive = useRef(false);
   const scrollYRef = useRef(0);
 
   // Konwersja współrzędnych klienta -> viewBox (0..400)
@@ -70,8 +72,8 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     return { x, y };
   };
 
-  const isMobilePointer = (event: React.PointerEvent) => {
-    return event.pointerType === "touch" || event.pointerType === "pen";
+  const isDesktopPointer = (event: React.PointerEvent) => {
+    return event.pointerType === "mouse";
   };
 
   const getLensTargetCoords = (clientX: number, clientY: number) => {
@@ -149,6 +151,25 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
 
     const pt = toSvgCoords(e.clientX, e.clientY);
 
+    /*
+    Desktop:
+    - zoom jest aktywny już na hoverze,
+    - kliknięcie zatwierdza trafienie,
+    - nie uruchamiamy long pressa.
+  */
+    if (isDesktopPointer(e)) {
+      e.preventDefault();
+
+      const hit = computeHit(pt.x, pt.y);
+      onHit(hit);
+
+      return;
+    }
+
+    /*
+    Mobile / touch / pen:
+    - zostaje dotychczasowy long press.
+  */
     pointerStart.current = pt;
     pressActive.current = true;
     movedAfterPress.current = false;
@@ -169,17 +190,37 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         ...pt,
         clientX: e.clientX,
         clientY: e.clientY,
-        useLensTarget: isMobilePointer(e),
+        useLensTarget: true,
+        source: "long-press",
       });
     }, LONG_PRESS_MS);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!pressActive.current) return;
-
     const pt = toSvgCoords(e.clientX, e.clientY);
 
-    // PO long pressie: celujemy i blokujemy scroll
+    /*
+    Desktop:
+    - jeśli jesteśmy nad tarczą, aktualizujemy pozycję lupy na hoverze.
+  */
+    if (isDesktopPointer(e) && hoverAimActive.current && !disabled) {
+      setAim({
+        ...pt,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        useLensTarget: false,
+        source: "hover",
+      });
+
+      return;
+    }
+
+    if (!pressActive.current) return;
+
+    /*
+    Mobile / touch / pen:
+    - po long pressie celujemy i blokujemy scroll.
+  */
     if (aimActive.current) {
       e.preventDefault();
 
@@ -187,14 +228,18 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         ...pt,
         clientX: e.clientX,
         clientY: e.clientY,
-        useLensTarget: isMobilePointer(e),
+        useLensTarget: true,
+        source: "long-press",
       });
 
       return;
     }
 
-    // PRZED long pressem: jeśli użytkownik poruszył palcem,
-    // traktujemy to jako scroll i anulujemy celowanie
+    /*
+    Przed long pressem:
+    - jeśli użytkownik poruszył palcem, traktujemy to jako scroll
+      i anulujemy celowanie.
+  */
     if (pointerStart.current) {
       const dx = pt.x - pointerStart.current.x;
       const dy = pt.y - pointerStart.current.y;
@@ -209,6 +254,10 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    if (isDesktopPointer(e)) {
+      return;
+    }
+
     if (!pressActive.current || disabled) {
       cancelLongPress();
       pressActive.current = false;
@@ -242,6 +291,33 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
     pressActive.current = false;
     aimActive.current = false;
     unlockPageScroll();
+  };
+
+  const handlePointerEnter = (e: React.PointerEvent) => {
+    if (disabled || !isDesktopPointer(e)) return;
+
+    const pt = toSvgCoords(e.clientX, e.clientY);
+
+    hoverAimActive.current = true;
+
+    setAim({
+      ...pt,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      useLensTarget: false,
+      source: "hover",
+    });
+  };
+
+  const handlePointerLeave = (e: React.PointerEvent) => {
+    if (!isDesktopPointer(e)) return;
+
+    hoverAimActive.current = false;
+
+    cancelLongPress();
+    pressActive.current = false;
+    aimActive.current = false;
+    setAim(null);
   };
 
   const handlePointerCancel = () => {
@@ -345,11 +421,17 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         ref={svgRef}
         viewBox="0 0 400 430"
         className="w-full h-auto block"
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
-        style={{ touchAction: "pan-y", overflow: "visible" }}
+        style={{
+          touchAction: "pan-y",
+          overflow: "visible",
+          cursor: aim?.source === "hover" ? "none" : undefined,
+        }}
       >
         {/*
           WARSTWA WIZUALNA — wszystkie elementy graficzne tarczy mają
@@ -361,7 +443,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
         */}
         <g style={{ pointerEvents: "none" }}>
           {/* Pierścień zewnętrzny / korpus */}
-          <circle cx="200" cy="200" r="210" fill="hsl(var(--board-black))" />
+          <circle cx="200" cy="200" r="210" fill="hsl(var(--board-cream))" />
           <circle cx="200" cy="200" r="200" fill="hsl(var(--board-wire))" />
 
           {sectorPaths.map((s) => (
@@ -403,7 +485,7 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
               fontSize="14"
               fontWeight="700"
               fontFamily="Oswald, Inter, sans-serif"
-              fill="hsl(var(--board-cream))"
+              fill="hsl(var(--board-black))"
             >
               {n.sector}
             </text>
@@ -460,6 +542,8 @@ export function Dartboard({ onHit, recentHits, disabled }: Props) {
           svgRef={svgRef}
           containerRef={containerRef}
           useLensTarget={aim.useLensTarget}
+          zoomMultiplier={aim.source === "hover" ? 1 : 1.25}
+          recentHits={recentHits}
         />
       )}
     </div>
@@ -474,6 +558,8 @@ function ZoomLens({
   svgRef,
   containerRef,
   useLensTarget,
+  zoomMultiplier,
+  recentHits,
 }: {
   cx: number;
   cy: number;
@@ -482,6 +568,8 @@ function ZoomLens({
   svgRef: React.RefObject<SVGSVGElement>;
   containerRef: React.RefObject<HTMLDivElement>;
   useLensTarget: boolean;
+  zoomMultiplier: number;
+  recentHits: DartHit[];
 }) {
   const lensR = 60;
   const lensSize = lensR * 2;
@@ -521,7 +609,7 @@ function ZoomLens({
   const svg = svgRef.current;
   const rect = svg?.getBoundingClientRect();
 
-  const zoom = ( rect ? rect.width / VIEWBOX_WIDTH : 1 ) * 1.25;
+  const zoom = (rect ? rect.width / VIEWBOX_WIDTH : 1) * zoomMultiplier;
 
   const lensCenterClientX = containerRect
     ? containerRect.left + left + lensR
@@ -570,15 +658,15 @@ function ZoomLens({
           cy={lensCy}
           r={lensR}
           fill="hsl(var(--background))"
-          stroke="hsl(var(--accent))"
-          strokeWidth="2"
+          stroke="hsl(var(--dart-hit))"
+          strokeWidth="3"
         />
 
         <g clipPath="url(#lens-clip)">
           <g
             transform={`translate(${lensCx} ${lensCy}) scale(${zoom}) translate(${-lensTargetX} ${-lensTargetY})`}
           >
-            <BoardClone />
+            <BoardClone recentHits={recentHits} />
           </g>
 
           <line
@@ -586,7 +674,7 @@ function ZoomLens({
             y1={lensCy}
             x2={lensCx + lensR - 6}
             y2={lensCy}
-            stroke="hsl(var(--accent))"
+            stroke="hsl(var(--dart-hit))"
             strokeWidth="1"
           />
 
@@ -595,7 +683,7 @@ function ZoomLens({
             y1={lensCy - lensR + 6}
             x2={lensCx}
             y2={lensCy + lensR - 6}
-            stroke="hsl(var(--accent))"
+            stroke="hsl(var(--dart-hit))"
             strokeWidth="1"
           />
 
@@ -604,11 +692,11 @@ function ZoomLens({
             cy={lensCy}
             r="10"
             fill="none"
-            stroke="hsl(var(--accent))"
+            stroke="hsl(var(--dart-hit))"
             strokeWidth="1.5"
           />
 
-          <circle cx={lensCx} cy={lensCy} r="2" fill="hsl(var(--accent))" />
+          <circle cx={lensCx} cy={lensCy} r="2" fill="hsl(var(--dart-hit))" />
 
           <rect
             x={lensCx - 32}
@@ -640,7 +728,7 @@ function ZoomLens({
 }
 
 // Klon zawartości tarczy — używany wewnątrz lupy.
-function BoardClone() {
+function BoardClone({ recentHits }: { recentHits: DartHit[] }) {
   const sectorPaths = useMemo(() => {
     const items: { d: string; fill: string; key: string }[] = [];
 
@@ -681,9 +769,21 @@ function BoardClone() {
     return items;
   }, []);
 
+  const sectorNumbers = useMemo(() => {
+    return SECTORS.map((sector, i) => {
+      const angle = i * 18;
+      const rad = ((angle - 90) * Math.PI) / 180;
+      const r = R.doubleOuter + 14;
+      const x = 200 + r * Math.cos(rad);
+      const y = 200 + r * Math.sin(rad);
+
+      return { sector, x, y, key: `n-${i}` };
+    });
+  }, []);
+
   return (
     <>
-      <circle cx="200" cy="200" r="210" fill="hsl(var(--board-black))" />
+      <circle cx="200" cy="200" r="210" fill="hsl(var(--board-cream))" />
       <circle cx="200" cy="200" r="200" fill="hsl(var(--board-wire))" />
 
       {sectorPaths.map((s) => (
@@ -713,6 +813,52 @@ function BoardClone() {
         stroke="hsl(var(--board-wire))"
         strokeWidth="0.6"
       />
+
+      {sectorNumbers.map((n) => (
+            <text
+              key={n.key}
+              x={n.x}
+              y={n.y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize="14"
+              fontWeight="700"
+              fontFamily="Oswald, Inter, sans-serif"
+              fill="hsl(var(--board-black))"
+            >
+              {n.sector}
+            </text>
+          ))}
+
+      {recentHits.map((h, i) => (
+        <g key={`lens-hit-${i}`}>
+          <circle
+            cx={h.x}
+            cy={h.y}
+            r="6"
+            fill="hsl(var(--dart-hit))"
+            opacity="0.25"
+          />
+          <line
+            x1={h.x - 6}
+            y1={h.y - 6}
+            x2={h.x + 6}
+            y2={h.y + 6}
+            stroke="hsl(var(--dart-hit))"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          />
+          <line
+            x1={h.x - 6}
+            y1={h.y + 6}
+            x2={h.x + 6}
+            y2={h.y - 6}
+            stroke="hsl(var(--dart-hit))"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+          />
+        </g>
+      ))}
     </>
   );
 }
