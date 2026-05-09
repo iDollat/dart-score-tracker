@@ -5,14 +5,14 @@ export type GameMode = 301 | 501;
 export interface Player {
   id: string;
   name: string;
-  score: number;        // pozostałe punkty
+  score: number; // pozostałe punkty
 }
 
 export interface TurnRecord {
   playerId: string;
   playerName: string;
-  darts: DartHit[];     // do 3 rzutów
-  totalScored: number;  // suma odjęta od wyniku (0 jeśli bust)
+  darts: DartHit[]; // do 3 rzutów
+  totalScored: number; // suma odjęta od wyniku (0 jeśli bust)
   bust: boolean;
   startScore: number;
   endScore: number;
@@ -22,8 +22,8 @@ export interface GameState {
   mode: GameMode;
   players: Player[];
   currentPlayerIdx: number;
-  currentDarts: DartHit[];   // bieżąca tura, max 3
-  history: TurnRecord[];     // zakończone tury
+  currentDarts: DartHit[]; // bieżąca tura, max 3
+  history: TurnRecord[]; // zakończone tury
   winnerId: string | null;
   startedAt: number;
 }
@@ -69,14 +69,9 @@ export function endTurn(state: GameState): {
   let event: "bust" | "win" | "next" = "next";
 
   if (tentative < 0 || tentative === 1) {
-    // bust: zejście poniżej 0 lub do 1 (nie da się skończyć przy straight out z 1)
-    // Uwaga: w straight out 1 NIE jest bustem klasycznie, ale też nie wygrywa.
-    // Zostawiamy bust tylko dla < 0 zgodnie z wymaganiami "brak zejścia poniżej 0".
-    if (tentative < 0) {
-      bust = true;
-      endScore = player.score;
-      event = "bust";
-    }
+    bust = true;
+    endScore = player.score;
+    event = "bust";
   }
 
   if (!bust && tentative === 0) {
@@ -113,6 +108,18 @@ export function endTurn(state: GameState): {
     },
     event,
   };
+}
+
+export function shouldBust(score: number, darts: DartHit[]): boolean {
+  const total = sumDarts(darts);
+  const tentative = score - total;
+
+  return tentative < 0 || tentative === 1;
+}
+
+export function shouldWin(score: number, darts: DartHit[]): boolean {
+  const total = sumDarts(darts);
+  return score - total === 0;
 }
 
 export function undoLastTurn(state: GameState): {
@@ -161,7 +168,7 @@ export function undoLastTurn(state: GameState): {
           ...p,
           score: last.startScore,
         }
-      : p
+      : p,
   );
 
   return {

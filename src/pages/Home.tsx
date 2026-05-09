@@ -20,26 +20,35 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex items-center justify-center p-4 bg-background text-foreground">
-      <div className="fixed right-4 top-4 z-[200] flex items-center gap-2">
-        {!loading && user ? (
+      <div
+        className="fixed right-4 top-4 z-[200] flex items-center gap-2"
+        aria-live="polite"
+      >
+        {loading ? (
+          <div
+            className="h-9 w-32 animate-pulse rounded-md bg-muted"
+            role="status"
+            aria-label="Ładowanie informacji o użytkowniku"
+          />
+        ) : user ? (
           <UserMenu />
-        ) : !loading ? (
+        ) : (
           <>
             <Button
               size="sm"
               variant="outline"
               onClick={() => navigate("/login")}
             >
-              <LogIn className="mr-2 h-4 w-4" />
+              <LogIn className="mr-2 h-4 w-4" aria-hidden="true" />
               Zaloguj
             </Button>
 
             <Button size="sm" onClick={() => navigate("/register")}>
-              <UserPlus className="mr-2 h-4 w-4" />
+              <UserPlus className="mr-2 h-4 w-4" aria-hidden="true" />
               Rejestracja
             </Button>
           </>
-        ) : null}
+        )}
       </div>
 
       <Card className="w-full max-w-xl p-6 sm:p-8 shadow-card-elev border-border/60 bg-card/80 backdrop-blur">

@@ -14,14 +14,14 @@ import { toast } from "sonner";
 export function useGameState() {
   const [turnSummary, setTurnSummary] = useState<TurnRecord | null>(null);
   useEffect(() => {
-  if (!turnSummary) return;
+    if (!turnSummary) return;
 
-  const timeout = window.setTimeout(() => {
-    setTurnSummary(null);
-  }, 3800);
+    const timeout = window.setTimeout(() => {
+      setTurnSummary(null);
+    }, 3800);
 
-  return () => window.clearTimeout(timeout);
-}, [turnSummary]);
+    return () => window.clearTimeout(timeout);
+  }, [turnSummary]);
 
   const [state, setState] = useState<GameState | null>(() => {
     try {
@@ -44,7 +44,14 @@ export function useGameState() {
   }, []);
 
   const restartGame = useCallback(() => {
-    setState((s) => (s ? createGame(s.mode, s.players.map((p) => p.name)) : s));
+    setState((s) =>
+      s
+        ? createGame(
+            s.mode,
+            s.players.map((p) => p.name),
+          )
+        : s,
+    );
   }, []);
 
   const quitGame = useCallback(() => setState(null), []);
@@ -57,26 +64,25 @@ export function useGameState() {
       // auto-end po 3 rzutach
       if (next.currentDarts.length === 3) {
         const result = endTurn(next);
-        const lastTurn = result.state.history[result.state.history.length - 1] ?? null;
+        const lastTurn =
+          result.state.history[result.state.history.length - 1] ?? null;
         setTurnSummary(lastTurn);
         announce(result.event, result.state);
         return result.state;
       }
-      // wczesny bust po dowolnym rzucie? Sprawdźmy potencjalny score.
+      // wczesny bust / win po dowolnym rzucie
       const player = next.players[next.currentPlayerIdx];
       const total = next.currentDarts.reduce((a, d) => a + d.score, 0);
-      if (player.score - total < 0) {
+      const remaining = player.score - total;
+
+      if (remaining < 0 || remaining === 1 || remaining === 0) {
         const result = endTurn(next);
-        const lastTurn = result.state.history[result.state.history.length - 1] ?? null;
+        const lastTurn =
+          result.state.history[result.state.history.length - 1] ?? null;
+
         setTurnSummary(lastTurn);
         announce(result.event, result.state);
-        return result.state;
-      }
-      if (player.score - total === 0) {
-        const result = endTurn(next);
-        const lastTurn = result.state.history[result.state.history.length - 1] ?? null;
-        setTurnSummary(lastTurn);
-        announce(result.event, result.state);
+
         return result.state;
       }
       return next;
@@ -87,8 +93,9 @@ export function useGameState() {
     setState((s) => {
       if (!s || s.winnerId) return s;
       const result = endTurn(s);
-      const lastTurn = result.state.history[result.state.history.length - 1] ?? null;
-        setTurnSummary(lastTurn);
+      const lastTurn =
+        result.state.history[result.state.history.length - 1] ?? null;
+      setTurnSummary(lastTurn);
       announce(result.event, result.state);
       return result.state;
     });
@@ -118,15 +125,29 @@ export function useGameState() {
     return () => window.clearTimeout(timeout);
   }, [lastUndoLabel]);
 
-  return { state, turnSummary, lastUndoLabel, newGame, restartGame, quitGame, addDart, finishTurn, undo };
+  return {
+    state,
+    turnSummary,
+    lastUndoLabel,
+    newGame,
+    restartGame,
+    quitGame,
+    addDart,
+    finishTurn,
+    undo,
+  };
 }
 
 function announce(event: "bust" | "win" | "next", state: GameState) {
   if (event === "bust") {
     const last = state.history[state.history.length - 1];
-    toast.error("BUST!", { description: `${last.playerName} — tura cofnięta.` });
+    toast.error("BUST!", {
+      description: `${last.playerName} — tura cofnięta.`,
+    });
   } else if (event === "win") {
     const winner = state.players.find((p) => p.id === state.winnerId);
-    toast.success("Zwycięstwo!", { description: `${winner?.name} wygrywa partię 🎯` });
+    toast.success("Zwycięstwo!", {
+      description: `${winner?.name} wygrywa partię 🎯`,
+    });
   }
 }

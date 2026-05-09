@@ -134,7 +134,7 @@ const App = () => (
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
-        <Sonner />
+        <Sonner duration={1500} />
 
         <BrowserRouter>
           <Suspense fallback={<PageLoader />}>
